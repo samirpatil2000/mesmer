@@ -34,6 +34,72 @@ enum TranscriptionMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+// MARK: - Corrections Dictionary
+
+struct CorrectionEntry: Codable, Identifiable {
+    var id = UUID()
+    var spoken: String
+    var corrected: String
+}
+
+@MainActor
+final class CorrectionsDictionary: ObservableObject {
+    @Published var entries: [CorrectionEntry] = [] {
+        didSet {
+            save()
+        }
+    }
+    
+    init() {
+        if let data = UserDefaults.standard.data(forKey: "LocalWhisper.Corrections"),
+           let decoded = try? JSONDecoder().decode([CorrectionEntry].self, from: data) {
+            self.entries = decoded
+        }
+    }
+    
+    func save() {
+        if let encoded = try? JSONEncoder().encode(entries) {
+            UserDefaults.standard.set(encoded, forKey: "LocalWhisper.Corrections")
+        }
+    }
+    
+    func add(spoken: String, corrected: String) {
+        let trimmedSpoken = spoken.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedCorrected = corrected.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSpoken.isEmpty, !trimmedCorrected.isEmpty else { return }
+        entries.append(CorrectionEntry(spoken: trimmedSpoken, corrected: trimmedCorrected))
+    }
+    
+    func remove(at offsets: IndexSet) {
+        entries.remove(atOffsets: offsets)
+    }
+    
+    /// Layer 1: Instant find-and-replace on transcript (case-insensitive)
+    func apply(to text: String) -> String {
+        var result = text
+        for entry in entries {
+            // Use regex for case-insensitive whole-word replacement if possible,
+            // or simple replacingOccurrences. We'll use simple case-insensitive replace for speed.
+            result = result.replacingOccurrences(
+                of: "(?i)\\b\(NSRegularExpression.escapedPattern(for: entry.spoken))\\b",
+                with: entry.corrected,
+                options: .regularExpression
+            )
+        }
+        return result
+    }
+    
+    /// Layer 2: Formatted context block for the AI Prompt
+    func contextBlock() -> String {
+        guard !entries.isEmpty else { return "" }
+        var block = "\nPERSONAL DICTIONARY (always apply these corrections):\n"
+        for entry in entries {
+            block += "- \"\(entry.spoken)\" → \"\(entry.corrected)\"\n"
+        }
+        return block
+    }
+}
+
 // MARK: - Speech Recognizer
 
 @MainActor
@@ -43,10 +109,18 @@ final class SpeechRecognizer: ObservableObject {
     @Published var errorMessage: String? = nil
     @Published var mode: TranscriptionMode = .realtime
     
-    /// Internal buffer — always updated live. The `transcript` is only
-    /// published in real-time mode; in "after recording" mode it is
-    /// held back until the user stops recording.
-    private var liveBuffer: String = ""
+    var corrections: CorrectionsDictionary?
+    
+    /// Text accumulated from previous recognition sessions within
+    /// the same recording. Each time Apple's recognizer times out
+    /// (~60s), we save what we have here and restart seamlessly.
+    private var accumulatedTranscript: String = ""
+    
+    /// The partial text from the current recognition session only.
+    private var currentSessionText: String = ""
+    
+    /// Whether the user intentionally stopped recording (vs. auto-restart).
+    private var userRequestedStop: Bool = false
     
     private var speechRecognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
@@ -58,9 +132,29 @@ final class SpeechRecognizer: ObservableObject {
         speechRecognizer?.supportsOnDeviceRecognition = true
     }
     
+    /// The full transcript is accumulated + current session, with corrections applied.
+    private var fullTranscript: String {
+        let combined: String
+        if accumulatedTranscript.isEmpty {
+            combined = currentSessionText
+        } else if currentSessionText.isEmpty {
+            combined = accumulatedTranscript
+        } else {
+            combined = accumulatedTranscript + " " + currentSessionText
+        }
+        return corrections?.apply(to: combined) ?? combined
+    }
+    
     func toggleRecording() {
         if isRecording {
-            stopRecording()
+            userRequestedStop = true
+            stopAudioAndRecognition()
+            isRecording = false
+            
+            // In "after recording" mode, reveal the full transcript now
+            if mode == .afterRecording {
+                transcript = fullTranscript
+            }
         } else {
             Task {
                 await startRecording()
@@ -71,7 +165,9 @@ final class SpeechRecognizer: ObservableObject {
     private func startRecording() async {
         errorMessage = nil
         transcript = ""
-        liveBuffer = ""
+        accumulatedTranscript = ""
+        currentSessionText = ""
+        userRequestedStop = false
         
         // Request speech recognition authorization
         let authStatus = await withCheckedContinuation { continuation in
@@ -90,45 +186,7 @@ final class SpeechRecognizer: ObservableObject {
             return
         }
         
-        // Stop any existing task
-        recognitionTask?.cancel()
-        recognitionTask = nil
-        
-        // Create recognition request
-        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
-        guard let recognitionRequest = recognitionRequest else {
-            errorMessage = "Failed to create speech recognition request."
-            return
-        }
-        
-        recognitionRequest.requiresOnDeviceRecognition = true
-        recognitionRequest.shouldReportPartialResults = true
-        
-        // Start recognition task
-        recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
-            Task { @MainActor in
-                guard let self = self else { return }
-                
-                if let result = result {
-                    self.liveBuffer = result.bestTranscription.formattedString
-                    
-                    // Only push to transcript in real-time mode
-                    if self.mode == .realtime {
-                        self.transcript = self.liveBuffer
-                    }
-                }
-                
-                if let error = error {
-                    let nsError = error as NSError
-                    if nsError.domain != "kAFAssistantErrorDomain" || nsError.code != 216 {
-                        self.errorMessage = "Recognition error: \(error.localizedDescription)"
-                    }
-                    self.stopRecording()
-                }
-            }
-        }
-        
-        // Configure and start audio engine
+        // Start audio engine (runs for the entire recording session)
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         
@@ -142,22 +200,96 @@ final class SpeechRecognizer: ObservableObject {
             isRecording = true
         } catch {
             errorMessage = "Failed to start audio engine: \(error.localizedDescription)"
+            return
+        }
+        
+        // Start the first recognition session
+        startRecognitionTask()
+    }
+    
+    /// Starts (or restarts) just the recognition task — without
+    /// touching the audio engine, which keeps running continuously.
+    private func startRecognitionTask() {
+        guard let speechRecognizer = speechRecognizer else { return }
+        
+        // Cancel any prior task cleanly
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        
+        // Fresh request for this session
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        guard let recognitionRequest = recognitionRequest else { return }
+        
+        recognitionRequest.requiresOnDeviceRecognition = true
+        recognitionRequest.shouldReportPartialResults = true
+        
+        currentSessionText = ""
+        
+        recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
+            Task { @MainActor in
+                guard let self = self else { return }
+                
+                if let result = result {
+                    self.currentSessionText = result.bestTranscription.formattedString
+                    
+                    // Push to transcript in real-time mode
+                    if self.mode == .realtime {
+                        self.transcript = self.fullTranscript
+                    }
+                    
+                    // If this is a final result, commit it to accumulated
+                    if result.isFinal {
+                        self.commitCurrentSession()
+                    }
+                }
+                
+                if let error = error {
+                    // Commit whatever we have so far from this session
+                    self.commitCurrentSession()
+                    
+                    let nsError = error as NSError
+                    let isCancellation = nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 216
+                    
+                    if !isCancellation && !self.userRequestedStop {
+                        // Recognition timed out or hit a limit — auto-restart
+                        self.startRecognitionTask()
+                    }
+                }
+            }
+        }
+        
+        // Re-install the audio tap to feed this new request
+        // (the engine is still running, we just need to reconnect the tap)
+        let inputNode = audioEngine.inputNode
+        inputNode.removeTap(onBus: 0)
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+            self?.recognitionRequest?.append(buffer)
         }
     }
     
-    func stopRecording() {
+    /// Saves current session text into the accumulated transcript.
+    private func commitCurrentSession() {
+        if !currentSessionText.isEmpty {
+            if accumulatedTranscript.isEmpty {
+                accumulatedTranscript = currentSessionText
+            } else {
+                accumulatedTranscript += " " + currentSessionText
+            }
+            currentSessionText = ""
+        }
+    }
+    
+    /// Stops the audio engine and cancels recognition. Does NOT
+    /// update `isRecording` — the caller decides that.
+    private func stopAudioAndRecognition() {
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         recognitionRequest?.endAudio()
         recognitionRequest = nil
         recognitionTask?.cancel()
         recognitionTask = nil
-        isRecording = false
-        
-        // In "after recording" mode, reveal the full transcript now
-        if mode == .afterRecording && !liveBuffer.isEmpty {
-            transcript = liveBuffer
-        }
+        commitCurrentSession()
     }
 }
 
@@ -168,6 +300,8 @@ final class RewriteEngine: ObservableObject {
     @Published var rewrittenText: String = ""
     @Published var isProcessing: Bool = false
     @Published var errorMessage: String? = nil
+    
+    var corrections: CorrectionsDictionary?
     
     func rewrite(transcript: String, style: RewriteStyle) async {
         guard !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -229,6 +363,11 @@ final class RewriteEngine: ObservableObject {
         - Repetitions and restated ideas
         - Informal or fragmented grammar
         - Thoughts that trail off or jump between topics
+        \(corrections?.contextBlock() ?? "")
+        STRUCTURED DATA HANDLING:
+        - When the speaker dictates an email address, reconstruct it properly (e.g. "sameer s patil 7420 double 9 at gmail dot com" → use the closest match from the personal dictionary or format as an email).
+        - When the speaker says a phone number, format as digits (e.g. "double 9" = 99, "triple 0" = 000).
+        - When the speaker says a URL, reconstruct it (e.g. "github dot com slash something" → "github.com/something").
         
         YOUR JOB:
         1. Extract the actual meaning and intent behind the spoken words
@@ -262,28 +401,141 @@ final class RewriteEngine: ObservableObject {
     }
 }
 
+// MARK: - Subviews
+
+struct CorrectionsPopover: View {
+    @ObservedObject var dictionary: CorrectionsDictionary
+    @State private var newSpoken = ""
+    @State private var newCorrected = ""
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("Personal Corrections")
+                .font(.system(size: 15, weight: .medium))
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+            
+            Text("Teach Local Whisper how to transcribe specific names, terms, or email addresses.")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+            
+            Divider()
+            
+            if dictionary.entries.isEmpty {
+                VStack {
+                    Spacer()
+                    Text("No corrections yet.")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .frame(height: 150)
+            } else {
+                List {
+                    ForEach(dictionary.entries) { entry in
+                        HStack {
+                            Text(entry.spoken)
+                                .foregroundColor(.secondary)
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(Color(nsColor: .tertiaryLabelColor))
+                            Text(entry.corrected)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Button(action: {
+                                if let index = dictionary.entries.firstIndex(where: { $0.id == entry.id }) {
+                                    dictionary.remove(at: IndexSet(integer: index))
+                                }
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(Color(nsColor: .tertiaryLabelColor))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .font(.system(size: 13))
+                        .padding(.vertical, 2)
+                    }
+                }
+                .listStyle(.plain)
+                .frame(height: 150)
+            }
+            
+            Divider()
+            
+            HStack(spacing: 8) {
+                TextField("When I say...", text: $newSpoken)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 13))
+                
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(Color(nsColor: .tertiaryLabelColor))
+                
+                TextField("Replace with...", text: $newCorrected)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 13))
+                
+                Button("Add") {
+                    dictionary.add(spoken: newSpoken, corrected: newCorrected)
+                    newSpoken = ""
+                    newCorrected = ""
+                }
+                .disabled(newSpoken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newCorrected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(16)
+        }
+        .frame(width: 400)
+    }
+}
+
 // MARK: - Content View
 
 struct ContentView: View {
+    @StateObject private var dictionary = CorrectionsDictionary()
     @StateObject private var speechRecognizer = SpeechRecognizer()
     @StateObject private var rewriteEngine = RewriteEngine()
     @State private var selectedStyle: RewriteStyle = .professional
     @State private var showOutput: Bool = false
     @State private var copied: Bool = false
+    @State private var showCorrections = false
     
     private let recordingRed = Color(red: 1.0, green: 0.231, blue: 0.188) // #FF3B30
     
     var body: some View {
         VStack(spacing: 0) {
-            // App title
-            VStack(spacing: 2) {
-                Text("Local Whisper")
-                    .font(.system(size: 28, weight: .light, design: .default))
-                    .foregroundColor(.primary)
+            // App title area
+            HStack {
+                Spacer()
                 
-                Text("On-device. Private. Instant.")
-                    .font(.system(size: 13, weight: .regular))
+                VStack(spacing: 2) {
+                    Text("Local Whisper")
+                        .font(.system(size: 28, weight: .light, design: .default))
+                        .foregroundColor(.primary)
+                    
+                    Text("On-device. Private. Instant.")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.leading, 70) // roughly balance the trailing corrections button
+                
+                Spacer()
+                
+                Button(action: { showCorrections.toggle() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "book.closed")
+                        Text("Dictionary")
+                    }
+                    .font(.system(size: 13))
                     .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 32)
+                .popover(isPresented: $showCorrections) {
+                    CorrectionsPopover(dictionary: dictionary)
+                }
             }
             .padding(.top, 28)
             .padding(.bottom, 20)
@@ -506,6 +758,10 @@ struct ContentView: View {
         }
         .frame(minWidth: 500, minHeight: 600)
         .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear {
+            speechRecognizer.corrections = dictionary
+            rewriteEngine.corrections = dictionary
+        }
     }
 }
 
