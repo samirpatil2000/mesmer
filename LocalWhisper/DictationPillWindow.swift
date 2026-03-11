@@ -1,144 +1,220 @@
 import AppKit
 import SwiftUI
 
-/// Floating pill window that appears at the bottom center of the screen during dictation.
-/// Dark, minimal design with a live waveform animation — iOS dictation style.
+// MARK: - Dictation Pill Window
+
+/// A floating dictation pill that mimics native macOS HUD design.
+/// 180×48pt, frosted dark glass, mic icon + 5 organic waveform bars. Nothing else.
+@MainActor
 final class DictationPillWindow: NSPanel {
     
-    private let pillWidth: CGFloat = 160
-    private let pillHeight: CGFloat = 44
-    private let bottomInset: CGFloat = 24
+    private let pillWidth: CGFloat = 180
+    private let pillHeight: CGFloat = 48
+    private let bottomOffset: CGFloat = 32
+    
+    private var hostingView: NSHostingView<DictationPillContent>?
+    private let pillContent = DictationPillState()
     
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 160, height: 44),
+            contentRect: NSRect(x: 0, y: 0, width: 180, height: 48),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         
-        isFloatingPanel = true
-        level = .floating
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true
-        hidesOnDeactivate = false
+        level = .floating
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         isMovableByWindowBackground = false
+        hidesOnDeactivate = false
         
-        // Host SwiftUI content
-        let hostingView = NSHostingView(rootView: DictationPillContent())
-        hostingView.frame = NSRect(x: 0, y: 0, width: pillWidth, height: pillHeight)
-        contentView = hostingView
+        // Build content
+        let content = DictationPillContent(state: pillContent)
+        let hosting = NSHostingView(rootView: content)
+        hosting.frame = NSRect(x: 0, y: 0, width: pillWidth, height: pillHeight)
         
-        positionAtBottomCenter()
-    }
-    
-    private func positionAtBottomCenter() {
-        guard let screen = NSScreen.main else { return }
-        let screenFrame = screen.frame
-        let x = screenFrame.midX - pillWidth / 2
-        let y = screenFrame.origin.y + bottomInset
-        setFrameOrigin(NSPoint(x: x, y: y))
+        // Visual effect background
+        let effectView = NSVisualEffectView(frame: hosting.bounds)
+        effectView.material = .hudWindow
+        effectView.state = .active
+        effectView.blendingMode = .behindWindow
+        effectView.wantsLayer = true
+        effectView.layer?.cornerRadius = pillHeight / 2
+        effectView.layer?.masksToBounds = true
+        
+        // Subtle inner border
+        effectView.layer?.borderWidth = 0.5
+        effectView.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
+        
+        // Container
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: pillWidth, height: pillHeight))
+        container.wantsLayer = true
+        container.layer?.cornerRadius = pillHeight / 2
+        container.layer?.masksToBounds = true
+        
+        container.addSubview(effectView)
+        effectView.frame = container.bounds
+        effectView.autoresizingMask = [.width, .height]
+        
+        hosting.frame = container.bounds
+        container.addSubview(hosting)
+        hosting.autoresizingMask = [.width, .height]
+        
+        // Make hosting view transparent so the effect view shows through
+        hosting.layer?.backgroundColor = .clear
+        
+        contentView = container
     }
     
     func showPill() {
-        positionAtBottomCenter()
+        // Position: centered horizontally, 32pt from bottom
+        guard let screen = NSScreen.main else { return }
+        let screenFrame = screen.visibleFrame
+        let x = screenFrame.midX - pillWidth / 2
+        let y = screen.frame.origin.y + bottomOffset
+        setFrame(NSRect(x: x, y: y, width: pillWidth, height: pillHeight), display: true)
+        
+        // Start invisible and scaled down
         alphaValue = 0
+        contentView?.layer?.setAffineTransform(CGAffineTransform(scaleX: 0.7, y: 0.7))
+        
         orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.15
-            animator().alphaValue = 1
+        
+        // Animate in: spring scale + fade
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.25
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            context.allowsImplicitAnimation = true
+            self.animator().alphaValue = 1.0
+            self.contentView?.layer?.setAffineTransform(.identity)
         }
+        
+        // Start waveform
+        pillContent.isAnimating = true
     }
     
     func hidePill() {
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.12
-            animator().alphaValue = 0
+        pillContent.isAnimating = false
+        
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.2
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            context.allowsImplicitAnimation = true
+            self.animator().alphaValue = 0
+            self.contentView?.layer?.setAffineTransform(CGAffineTransform(scaleX: 0.85, y: 0.85))
         }, completionHandler: {
             self.orderOut(nil)
+            self.contentView?.layer?.setAffineTransform(.identity)
         })
     }
 }
 
-// MARK: - SwiftUI Content
+// MARK: - Pill State
 
-private struct DictationPillContent: View {
+@Observable
+@MainActor
+final class DictationPillState {
+    var isAnimating: Bool = false
+}
+
+// MARK: - Pill Content View (SwiftUI)
+
+struct DictationPillContent: View {
+    let state: DictationPillState
+    
     var body: some View {
-        ZStack {
-            // Dark blurred background
-            RoundedRectangle(cornerRadius: 22)
-                .fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
+        HStack(spacing: 0) {
+            Spacer().frame(width: 20)
             
-            RoundedRectangle(cornerRadius: 22)
-                .fill(Color.black.opacity(0.6))
+            // Mic icon with glow
+            Image(systemName: "mic.fill")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(.white)
+                .shadow(color: .white.opacity(0.4), radius: 6, x: 0, y: 0)
             
-            // Waveform bars
-            WaveformView()
+            Spacer().frame(width: 16)
+            
+            // Five waveform bars
+            WaveformBars(isAnimating: state.isAnimating)
+            
+            Spacer()
         }
-        .frame(width: 160, height: 44)
-        .clipShape(RoundedRectangle(cornerRadius: 22))
-        .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 4)
+        .frame(width: 180, height: 48)
     }
 }
 
-private struct WaveformView: View {
-    @State private var isAnimating = false
+// MARK: - Waveform Bars
+
+struct WaveformBars: View {
+    let isAnimating: Bool
     
-    private let barCount = 5
+    // Unique timing for each bar — organic, not robotic
+    private let barDurations: [Double] = [0.38, 0.45, 0.35, 0.50, 0.42]
+    private let barMaxHeights: [CGFloat] = [14, 20, 16, 18, 12]
+    private let barMinHeight: CGFloat = 4
     private let barWidth: CGFloat = 3
-    private let spacing: CGFloat = 4
-    private let maxHeight: CGFloat = 20
-    private let minHeight: CGFloat = 4
+    private let barSpacing: CGFloat = 3
     
     var body: some View {
-        HStack(spacing: spacing) {
-            // Left side: mic icon
-            Image(systemName: "mic.fill")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.9))
-                .padding(.trailing, 6)
-            
-            // Waveform bars
-            ForEach(0..<barCount, id: \.self) { i in
+        HStack(spacing: barSpacing) {
+            ForEach(0..<5, id: \.self) { index in
                 WaveformBar(
                     isAnimating: isAnimating,
-                    delay: Double(i) * 0.1,
-                    maxHeight: maxHeight,
-                    minHeight: minHeight
+                    minHeight: barMinHeight,
+                    maxHeight: barMaxHeights[index],
+                    duration: barDurations[index],
+                    delay: Double(index) * 0.06
                 )
-                .frame(width: barWidth)
             }
-        }
-        .onAppear {
-            isAnimating = true
         }
     }
 }
 
-private struct WaveformBar: View {
+struct WaveformBar: View {
     let isAnimating: Bool
-    let delay: Double
-    let maxHeight: CGFloat
     let minHeight: CGFloat
+    let maxHeight: CGFloat
+    let duration: Double
+    let delay: Double
     
-    @State private var height: CGFloat = 4
+    @State private var animateToMax: Bool = false
     
     var body: some View {
         RoundedRectangle(cornerRadius: 1.5)
-            .fill(Color.white.opacity(0.85))
-            .frame(height: height)
-            .onAppear {
-                guard isAnimating else { return }
-                withAnimation(
-                    .easeInOut(duration: 0.4 + Double.random(in: 0...0.2))
-                    .repeatForever(autoreverses: true)
-                    .delay(delay)
-                ) {
-                    height = CGFloat.random(in: (minHeight + 4)...maxHeight)
+            .fill(Color.white)
+            .frame(width: 3, height: animateToMax ? maxHeight : minHeight)
+            .onChange(of: isAnimating) { _, active in
+                if active {
+                    startAnimation()
+                } else {
+                    stopAnimation()
                 }
             }
+            .onAppear {
+                if isAnimating {
+                    startAnimation()
+                }
+            }
+    }
+    
+    private func startAnimation() {
+        // Small stagger before starting
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            withAnimation(
+                .spring(response: duration, dampingFraction: 0.5)
+                .repeatForever(autoreverses: true)
+            ) {
+                animateToMax = true
+            }
+        }
+    }
+    
+    private func stopAnimation() {
+        withAnimation(.easeOut(duration: 0.15)) {
+            animateToMax = false
+        }
     }
 }
