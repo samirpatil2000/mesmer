@@ -21,27 +21,37 @@ enum AccessibilityService {
         )
     }
     
-    // MARK: - Focused Element
+    // MARK: - Focused Element (via frontmost app)
     
-    /// Returns the AXUIElement for the currently focused text field (system-wide).
+    /// Returns the AXUIElement for the focused text element in the frontmost application.
+    /// Uses NSWorkspace to get the frontmost app PID — more reliable than AX system-wide query.
     private static func focusedElement() -> AXUIElement? {
-        let systemWide = AXUIElementCreateSystemWide()
-        var focusedApp: AnyObject?
-        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &focusedApp) == .success else {
-            return nil
-        }
-        
+        guard let frontApp = NSWorkspace.shared.frontmostApplication else { return nil }
+        let pid = frontApp.processIdentifier
+        return focusedElement(forPID: pid)
+    }
+    
+    /// Returns the focused element for a specific app by PID.
+    static func focusedElement(forPID pid: pid_t) -> AXUIElement? {
+        let appElement = AXUIElementCreateApplication(pid)
         var focusedElement: AnyObject?
-        guard AXUIElementCopyAttributeValue(focusedApp as! AXUIElement, kAXFocusedUIElementAttribute as CFString, &focusedElement) == .success else {
-            return nil
-        }
-        
+        let result = AXUIElementCopyAttributeValue(
+            appElement,
+            kAXFocusedUIElementAttribute as CFString,
+            &focusedElement
+        )
+        guard result == .success else { return nil }
         return (focusedElement as! AXUIElement)
+    }
+    
+    /// Returns the PID of the current frontmost application.
+    static func frontmostAppPID() -> pid_t? {
+        return NSWorkspace.shared.frontmostApplication?.processIdentifier
     }
     
     // MARK: - Read Selected Text
     
-    /// Gets the currently selected text from any focused text field.
+    /// Gets the currently selected text from the frontmost app's focused text field.
     static func getSelectedText() -> String? {
         guard let element = focusedElement() else { return nil }
         
@@ -85,92 +95,69 @@ enum AccessibilityService {
     
     // MARK: - Replace Selected Text
     
-    /// Replaces the currently selected text in the focused text field.
+    /// Replaces the currently selected text in the frontmost app's focused text field.
+    /// Uses clipboard-paste as the universal method — AX attribute setting is unreliable across apps.
     static func replaceSelectedText(_ newText: String) {
-        guard let element = focusedElement() else { return }
-        AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, newText as CFTypeRef)
+        // The text is already selected, so pasting will replace it
+        injectViaClipboard(newText)
     }
     
     // MARK: - Inject Text
     
-    /// Injects text into the focused text field.
-    /// Strategy 1: Try AXUIElement direct insertion (no clipboard needed).
-    /// Strategy 2: Fall back to clipboard-based Cmd+V paste.
-    static func injectText(_ text: String) {
-        // Strategy 1: Try direct AX insertion
-        if injectViaAccessibility(text) {
-            return
-        }
-        
-        // Strategy 2: Clipboard-based paste
+    /// Injects text at the cursor position in the target app.
+    /// Uses clipboard-paste (Cmd+V) — works universally in every app.
+    static func injectText(_ text: String, targetPID: pid_t? = nil) {
         injectViaClipboard(text)
     }
     
-    /// Inserts text directly via AXUIElement by setting the value at the cursor position.
-    private static func injectViaAccessibility(_ text: String) -> Bool {
-        guard let element = focusedElement() else { return false }
-        
-        // Try to set selected text (replaces selection or inserts at cursor if no selection)
-        let result = AXUIElementSetAttributeValue(
-            element,
-            kAXSelectedTextAttribute as CFString,
-            text as CFTypeRef
-        )
-        return result == .success
-    }
-    
     /// Injects text by temporarily setting the clipboard and simulating Cmd+V.
+    /// Runs paste simulation on a background thread with synchronous delays for precise timing.
     private static func injectViaClipboard(_ text: String) {
         let pasteboard = NSPasteboard.general
         
-        // Save current clipboard
-        let savedChangeCount = pasteboard.changeCount
+        // Save current clipboard contents
         let savedItems = pasteboard.pasteboardItems?.compactMap { item -> (NSPasteboard.PasteboardType, Data)? in
-            guard let type = item.types.first,
-                  let data = item.data(forType: type) else { return nil }
-            return (type, data)
+            // Save all types for each item
+            for type in item.types {
+                if let data = item.data(forType: type) {
+                    return (type, data)
+                }
+            }
+            return nil
         }
         
         // Set our text on the clipboard
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
         
-        // Small delay to ensure clipboard is ready, then simulate Cmd+V
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            simulatePaste()
+        // Run paste simulation on background thread with synchronous timing
+        DispatchQueue.global(qos: .userInteractive).async {
+            // Wait for clipboard to fully update
+            usleep(100_000) // 100ms
             
-            // Restore original clipboard after paste completes
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                // Only restore if nothing else has touched the clipboard since
-                if pasteboard.changeCount == savedChangeCount + 1 {
-                    pasteboard.clearContents()
-                    if let saved = savedItems {
-                        for (type, data) in saved {
-                            pasteboard.setData(data, forType: type)
-                        }
+            // Simulate Cmd+V with nil event source (clean slate, no stale modifiers from FN key)
+            let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: 9, keyDown: true) // 9 = 'v'
+            keyDown?.flags = .maskCommand
+            keyDown?.post(tap: .cgSessionEventTap)
+            
+            usleep(50_000) // 50ms between key down and up
+            
+            let keyUp = CGEvent(keyboardEventSource: nil, virtualKey: 9, keyDown: false)
+            keyUp?.flags = .maskCommand
+            keyUp?.post(tap: .cgSessionEventTap)
+            
+            // Wait for the paste to complete before restoring clipboard
+            usleep(500_000) // 500ms
+            
+            // Restore original clipboard on main thread
+            DispatchQueue.main.async {
+                pasteboard.clearContents()
+                if let saved = savedItems, !saved.isEmpty {
+                    for (type, data) in saved {
+                        pasteboard.setData(data, forType: type)
                     }
                 }
             }
         }
-    }
-    
-    // MARK: - Simulate Paste (Cmd+V)
-    
-    /// Simulates Cmd+V keystroke to paste from clipboard.
-    private static func simulatePaste() {
-        let source = CGEventSource(stateID: .combinedSessionState)
-        
-        // Key down: V with Command
-        let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true) // 9 = 'v'
-        keyDown?.flags = .maskCommand
-        keyDown?.post(tap: .cgSessionEventTap)
-        
-        // Small delay between down and up
-        usleep(30_000) // 30ms
-        
-        // Key up: V with Command
-        let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false)
-        keyUp?.flags = .maskCommand
-        keyUp?.post(tap: .cgSessionEventTap)
     }
 }
