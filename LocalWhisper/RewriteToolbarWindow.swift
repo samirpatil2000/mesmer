@@ -21,7 +21,7 @@ final class RewriteToolbarWindow: NSPanel {
         self.toolbarContent = ToolbarContentState()
         
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 38),
+            contentRect: NSRect(x: 0, y: 0, width: 290, height: 38),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -61,12 +61,8 @@ final class RewriteToolbarWindow: NSPanel {
             return
         }
         
-        // Reset to pills mode
-        toolbarContent.mode = .pills
-        
-        // Calculate intrinsic size
-        let toolbarWidth = toolbarContent.currentWidth
-        let toolbarSize = NSSize(width: toolbarWidth, height: toolbarHeight)
+        // Calculate intrinsic size — 4 pills fit in ~290pt
+        let toolbarSize = NSSize(width: 290, height: toolbarHeight)
         
         // Calculate position relative to selection
         let position = calculatePosition(selectionBounds: selectionBounds, toolbarSize: toolbarSize)
@@ -111,26 +107,6 @@ final class RewriteToolbarWindow: NSPanel {
         })
     }
     
-    /// Update toolbar width smoothly when switching to custom mode
-    func updateSize(animated: Bool = true) {
-        let newWidth = toolbarContent.currentWidth
-        let newSize = NSSize(width: newWidth, height: toolbarHeight)
-        let origin = NSPoint(
-            x: frame.midX - newWidth / 2,
-            y: frame.origin.y
-        )
-        let newFrame = NSRect(origin: origin, size: newSize)
-        
-        if animated {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.22
-                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.25, 0.1, 0.25, 1.0)
-                self.animator().setFrame(newFrame, display: true)
-            }
-        } else {
-            setFrame(newFrame, display: true)
-        }
-    }
     
     // MARK: - Position Calculation
     
@@ -215,28 +191,14 @@ final class RewriteToolbarWindow: NSPanel {
 
 // MARK: - Toolbar State
 
-enum ToolbarMode {
-    case pills
-    case custom
-}
-
 @Observable
 @MainActor
 final class ToolbarContentState {
-    var mode: ToolbarMode = .pills
     var isProcessing: Bool = false
     var activeStyleName: String? = nil
     var onAction: ((_ name: String, _ prompt: String) -> Void)?
     
-    var currentWidth: CGFloat {
-        switch mode {
-        case .pills: return 320
-        case .custom: return 280
-        }
-    }
-    
     func reset() {
-        mode = .pills
         isProcessing = false
         activeStyleName = nil
     }
@@ -262,23 +224,7 @@ struct RewriteToolbarContent: View {
                 .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
             
             // Content
-            Group {
-                switch state.mode {
-                case .pills:
-                    PillsRow(state: state)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .leading).combined(with: .opacity),
-                            removal: .move(edge: .leading).combined(with: .opacity)
-                        ))
-                case .custom:
-                    CustomInputRow(state: state)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .trailing).combined(with: .opacity),
-                            removal: .move(edge: .trailing).combined(with: .opacity)
-                        ))
-                }
-            }
-            .animation(.spring(response: 0.22, dampingFraction: 0.75), value: state.mode)
+            PillsRow(state: state)
         }
         .frame(height: 38)
         .clipShape(RoundedRectangle(cornerRadius: 19))
@@ -333,17 +279,6 @@ struct PillsRow: View {
                 }
             }
             
-            PillDivider()
-            
-            PillButton(
-                label: "Custom",
-                isPulsing: state.isProcessing && state.activeStyleName == "Custom"
-            ) {
-                withAnimation(.spring(response: 0.22, dampingFraction: 0.75)) {
-                    state.mode = .custom
-                }
-            }
-            
             Spacer().frame(width: 10)
         }
     }
@@ -362,6 +297,7 @@ struct PillButton: View {
     
     var body: some View {
         Text(label)
+            .fixedSize()
             .font(.system(size: 12.5, weight: .medium, design: .rounded))
             .foregroundColor(labelColor)
             .padding(.horizontal, 14)
@@ -427,39 +363,4 @@ struct PillDivider: View {
     }
 }
 
-// MARK: - Custom Input Row
 
-struct CustomInputRow: View {
-    let state: ToolbarContentState
-    @State private var instruction: String = ""
-    @FocusState private var isFocused: Bool
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Spacer().frame(width: 14)
-            
-            TextField("Write an instruction…", text: $instruction)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12.5, weight: .regular))
-                .foregroundColor(.white)
-                .focused($isFocused)
-                .onSubmit {
-                    guard !instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                    state.onAction?("Custom", instruction)
-                }
-                .onExitCommand {
-                    withAnimation(.spring(response: 0.22, dampingFraction: 0.75)) {
-                        state.mode = .pills
-                    }
-                }
-            
-            Spacer().frame(width: 14)
-        }
-        .onAppear {
-            // Become first responder after animation
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isFocused = true
-            }
-        }
-    }
-}
