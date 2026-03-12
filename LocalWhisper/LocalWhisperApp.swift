@@ -400,16 +400,18 @@ final class SpeechRecognizer: ObservableObject {
         currentSessionText = ""
         userRequestedStop = false
         
-        // Request speech recognition authorization
-        let authStatus = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { status in
-                continuation.resume(returning: status)
+        // Fast path for authorization to avoid async bounce when already authorized
+        if SFSpeechRecognizer.authorizationStatus() != .authorized {
+            let authStatus = await withCheckedContinuation { continuation in
+                SFSpeechRecognizer.requestAuthorization { status in
+                    continuation.resume(returning: status)
+                }
             }
-        }
-        
-        guard authStatus == .authorized else {
-            errorMessage = "Speech recognition not authorized. Enable it in System Settings → Privacy & Security → Speech Recognition."
-            return
+            
+            guard authStatus == .authorized else {
+                errorMessage = "Speech recognition not authorized. Enable it in System Settings → Privacy & Security → Speech Recognition."
+                return
+            }
         }
         
         guard let speechRecognizer = speechRecognizer, speechRecognizer.isAvailable else {
@@ -417,22 +419,25 @@ final class SpeechRecognizer: ObservableObject {
             return
         }
         
-        // Start the audio engine first (without a tap — safe, just activates hardware)
+        // Setup audio pipeline:
+        // 1. Remove old taps and PREPARE engine so hardware is initialized
+        // 2. Install the tap via startRecognitionTask
+        // 3. START engine so its very first audio buffers are caught by the tap
         let inputNode = audioEngine.inputNode
         inputNode.removeTap(onBus: 0) // Remove any stale tap from a crashed previous session
+        audioEngine.prepare()
+        
+        // Now set up the recognition request + tap atomically.
+        startRecognitionTask(updateTranscriptLive: updateTranscriptLive)
         
         do {
-            audioEngine.prepare()
             try audioEngine.start()
             isRecording = true
         } catch {
             errorMessage = "Failed to start audio engine: \(error.localizedDescription)"
+            forceCleanup() // Ensure tap is removed if start fails
             return
         }
-        
-        // Now set up the recognition request + tap atomically in one place.
-        // The request is created BEFORE the tap so no buffers are lost.
-        startRecognitionTask(updateTranscriptLive: updateTranscriptLive)
     }
     
     /// Starts (or restarts) the recognition task.
