@@ -28,7 +28,7 @@ struct LocalWhisperApp: App {
                 }
             }
         }
-        .windowStyle(.titleBar)
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 600, height: 680)
     }
 }
@@ -104,6 +104,7 @@ struct MainAppView: View {
                         isSelected: selectedTab == tab,
                         namespace: animation
                     ) {
+                        // Use a faster spring for snappier native feel
                         withAnimation(.spring(response: 0.22, dampingFraction: 0.8)) {
                             selectedTab = tab
                         }
@@ -111,12 +112,8 @@ struct MainAppView: View {
                 }
                 Spacer()
             }
-            .frame(height: 52)
-            .background(Color.white)
-            
-            Rectangle()
-                .fill(Color(nsColor: .separatorColor))
-                .frame(height: 0.5)
+            .frame(height: 60)
+            .padding(.top, 8)
             
             // Tab content
             Group {
@@ -136,7 +133,7 @@ struct MainAppView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 560, minHeight: 480)
-        .background(Color(hex: "#F2F2F7"))
+        .background(Color(hex: "#0E0E0E"))
         .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in
             let granted = AXIsProcessTrusted()
             if granted != isAccessibilityGranted {
@@ -168,24 +165,22 @@ private struct TabButton: View {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 16))
+                
                 Text(title)
-                    .font(.system(size: 13, weight: .medium))
-            }
-            .foregroundColor(isSelected ? .accentColor : Color(hex: "#8E8E93"))
-            .frame(width: 64)
-            .contentShape(Rectangle())
-            .overlay(
-                VStack {
-                    Spacer()
-                    if isSelected {
-                        Rectangle()
-                            .fill(Color.accentColor)
-                            .frame(height: 2)
-                            .matchedGeometryEffect(id: "TabUnderline", in: namespace)
-                    }
+                    .font(.system(size: 11, weight: .medium))
+                
+                if isSelected {
+                    Capsule()
+                        .fill(Color.white.opacity(0.9))
+                        .frame(width: 24, height: 2)
+                        .matchedGeometryEffect(id: "TAB_INDICATOR", in: namespace)
+                } else {
+                    Color.clear.frame(height: 2)
                 }
-                .padding(.bottom, -8) // aligns perfectly to the bottom edge of the 52pt height
-            )
+            }
+            .frame(width: 60)
+            .foregroundColor(.white.opacity(isSelected ? 0.9 : 0.3))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

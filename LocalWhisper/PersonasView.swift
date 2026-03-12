@@ -11,36 +11,40 @@ struct PersonasView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Personas")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(.primary)
+                Text("PERSONAS")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.35))
+                    .tracking(0.8)
                 
                 Spacer()
                 
                 if manager.canAdd {
-                    Button("New") {
+                    NewPersonaButton {
                         newName = ""
                         newPrompt = ""
                         isAddingNew = true
                     }
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.accentColor)
-                    .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
             .padding(.bottom, 16)
             
             if manager.personas.isEmpty && !isAddingNew {
                 Spacer()
-                VStack(spacing: 8) {
-                    Text("No personas yet")
-                        .font(.system(size: 15, weight: .regular))
-                        .foregroundColor(Color(hex: "#8E8E93"))
-                    Text("Tap + to create a custom rewrite style.")
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(hex: "#8E8E93"))
+                VStack(spacing: 12) {
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.system(size: 40))
+                        .foregroundColor(.white.opacity(0.15))
+                    
+                    VStack(spacing: 4) {
+                        Text("No Personas Yet")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.white.opacity(0.25))
+                        Text("Tap + to create your first")
+                            .font(.system(size: 13))
+                            .foregroundColor(.white.opacity(0.18))
+                    }
                 }
                 Spacer()
             } else {
@@ -54,13 +58,13 @@ struct PersonasView: View {
                             )
                         }
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 20)
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(hex: "#F2F2F7"))
+        .background(Color(hex: "#0E0E0E"))
         .sheet(isPresented: $isAddingNew) {
             PersonaEditor(
                 name: $newName,
@@ -94,6 +98,30 @@ struct PersonasView: View {
     }
 }
 
+// MARK: - New Persona Button
+
+private struct NewPersonaButton: View {
+    let action: () -> Void
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "plus")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white.opacity(isHovering ? 1.0 : 0.7))
+                .frame(width: 28, height: 28)
+                .background(Color.white.opacity(isHovering ? 0.14 : 0.08))
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
+    }
+}
+
 // MARK: - Persona Card
 
 private struct PersonaCard: View {
@@ -107,38 +135,36 @@ private struct PersonaCard: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(persona.name)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(Color(hex: "#1C1C1E"))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.92))
                 
                 Text(persona.systemPrompt)
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(hex: "#8E8E93"))
-                    .lineLimit(1)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.white.opacity(0.40))
+                    .lineLimit(2)
             }
             
             Spacer()
             
-            if isHovering {
-                Button(action: onDelete) {
-                    Text("Delete")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.red)
-                }
-                .buttonStyle(.plain)
-            }
+            Image(systemName: "pencil")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white.opacity(isHovering ? 0.5 : 0.0))
+                .animation(.easeInOut(duration: 0.15), value: isHovering)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(isHovering ? Color(hex: "#F9F9F9") : Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 2)
+        .padding(16)
+        .background(isHovering ? Color(hex: "#2C2C2E") : Color(hex: "#1C1C1E"))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovering = hovering
-            }
+            // Instant transition for hover background per spec, using withAnimation for the pencil
+            isHovering = hovering
         }
         .onTapGesture {
             onEdit()
+        }
+        .contextMenu {
+            Button("Delete") {
+                onDelete()
+            }
         }
     }
 }
@@ -158,10 +184,11 @@ private struct PersonaEditor: View {
             VStack(alignment: .leading, spacing: 12) {
                 TextField("Name", text: $name)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.92))
                     .padding(.bottom, 8)
                     .overlay(
-                        Rectangle().fill(Color(hex: "#E5E5EA")).frame(height: 0.5),
+                        Rectangle().fill(Color.white.opacity(0.08)).frame(height: 0.5),
                         alignment: .bottom
                     )
                 
@@ -169,18 +196,19 @@ private struct PersonaEditor: View {
                     if prompt.isEmpty {
                         Text("Describe how this persona rewrites text…")
                             .font(.system(size: 13))
-                            .foregroundColor(Color(hex: "#8E8E93"))
+                            .foregroundColor(.white.opacity(0.22))
                             .padding(.top, 4)
                             .padding(.leading, 4)
                     }
                     TextEditor(text: $prompt)
                         .font(.system(size: 13))
+                        .foregroundColor(.white.opacity(0.92))
                         .frame(minHeight: 80)
                         .scrollContentBackground(.hidden)
                         .background(Color.clear)
                 }
                 .overlay(
-                    Rectangle().fill(Color(hex: "#E5E5EA")).frame(height: 0.5),
+                    Rectangle().fill(Color.white.opacity(0.08)).frame(height: 0.5),
                     alignment: .bottom
                 )
             }
@@ -194,18 +222,18 @@ private struct PersonaEditor: View {
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(Color(hex: "#8E8E93"))
+                .foregroundColor(.white.opacity(0.40))
                 .padding(.trailing, 16)
                 
                 Button(action: onSave) {
                     Text("Save")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundColor(.black)
                         .frame(width: 72, height: 36)
                         .background(
                             (name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
                              prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ?
-                            Color.accentColor.opacity(0.5) : Color.accentColor
+                            Color.white.opacity(0.3) : Color.white
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
@@ -217,7 +245,7 @@ private struct PersonaEditor: View {
             .padding(.bottom, 20)
         }
         .frame(width: 360)
-        .background(Color.white)
+        .background(Color(hex: "#1C1C1E"))
         .scaleEffect(isAppearing ? 1.0 : 0.95)
         .opacity(isAppearing ? 1.0 : 0.0)
         .onAppear {

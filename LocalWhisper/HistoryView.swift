@@ -8,18 +8,19 @@ struct HistoryView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("History")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(.primary)
+                Text("HISTORY")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.35))
+                    .tracking(0.8)
                 
                 Spacer()
                 
                 Text("\(manager.entries.count) entries")
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.22))
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
             .padding(.bottom, 16)
             
             if manager.entries.isEmpty {
@@ -29,7 +30,7 @@ struct HistoryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(hex: "#F2F2F7"))
+        .background(Color(hex: "#0E0E0E"))
     }
 }
 
@@ -40,11 +41,11 @@ private struct HistoryEmptyState: View {
         Spacer()
         VStack(spacing: 8) {
             Text("No history yet")
-                .font(.system(size: 15, weight: .regular))
-                .foregroundColor(Color(hex: "#8E8E93"))
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.white.opacity(0.25))
             Text("Dictations and rewrites will appear here.")
                 .font(.system(size: 13))
-                .foregroundColor(Color(hex: "#8E8E93"))
+                .foregroundColor(.white.opacity(0.18))
         }
         Spacer()
     }
@@ -86,9 +87,9 @@ private struct HistoryListView: View {
             
             if !isLast {
                 Rectangle()
-                    .fill(Color(hex: "#E5E5EA"))
+                    .fill(Color.white.opacity(0.06))
                     .frame(height: 0.5)
-                    .padding(.leading, 52)
+                    .padding(.leading, 44)
             }
         }
     }
@@ -103,29 +104,30 @@ private struct HistoryRow: View {
     let onToggle: () -> Void
     
     @State private var copied = false
+    @State private var isHovering = false
     
     var body: some View {
         Button(action: onToggle) {
             VStack(alignment: .leading, spacing: 0) {
                 // Compact row
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     ActionBadge(action: entry.action)
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text(entry.resultText)
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(Color(hex: "#1C1C1E"))
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundColor(.white.opacity(0.88))
                             .lineLimit(1)
                         
                         Text(entry.formattedTimestamp)
                             .font(.system(size: 12))
-                            .foregroundColor(Color(hex: "#8E8E93"))
+                            .foregroundColor(.white.opacity(0.28))
                     }
                     
                     Spacer()
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 20)
+                .frame(height: 56)
                 .contentShape(Rectangle())
                 
                 // Expanded details
@@ -133,9 +135,13 @@ private struct HistoryRow: View {
                     ExpandedDetails(entry: entry, copied: $copied)
                 }
             }
-            .background(Color.white)
+            .background(isHovering ? Color.white.opacity(0.04) : Color.clear)
         }
         .buttonStyle(.plain)
+        .onHover { hover in
+            // Instant hover transition for lists
+            isHovering = hover
+        }
     }
 }
 
@@ -147,31 +153,31 @@ private struct ExpandedDetails: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Rectangle()
-                .fill(Color(hex: "#E5E5EA"))
-                .frame(height: 0.5)
-            
             if !entry.originalText.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("ORIGINAL")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(Color(hex: "#8E8E93"))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.30))
+                        .tracking(0.5)
                     Text(entry.originalText)
-                        .font(.system(size: 14))
-                        .foregroundColor(Color(hex: "#1C1C1E"))
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(.white.opacity(0.55))
                         .textSelection(.enabled)
                 }
+                .padding(.top, 4)
             }
             
             VStack(alignment: .leading, spacing: 6) {
                 Text("RESULT")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(Color(hex: "#8E8E93"))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.30))
+                    .tracking(0.5)
                 Text(entry.resultText)
-                    .font(.system(size: 14))
-                    .foregroundColor(Color(hex: "#1C1C1E"))
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.white.opacity(0.80))
                     .textSelection(.enabled)
             }
+            .padding(.top, entry.originalText.isEmpty ? 4 : 0)
             
             HStack {
                 Spacer()
@@ -183,19 +189,21 @@ private struct ExpandedDetails: View {
                         copied = false
                     }
                 }) {
-                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 13))
-                        .foregroundColor(copied ? .green : .accentColor)
+                    Text(copied ? "Copied" : "Copy")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(copied ? .green : .white.opacity(0.30))
                 }
                 .buttonStyle(.plain)
             }
             
             Rectangle()
-                .fill(Color(hex: "#E5E5EA"))
+                .fill(Color.white.opacity(0.06))
                 .frame(height: 0.5)
+                .padding(.top, 4)
         }
-        .padding(.horizontal, 52)
-        .padding(.bottom, 12)
+        .padding(.leading, 44)
+        .padding(.trailing, 20)
+        .padding(.bottom, 8)
     }
 }
 
@@ -216,26 +224,10 @@ private struct ActionBadge: View {
         }
     }
     
-    private var color: Color {
-        switch action {
-        case .dictation: return Color(hex: "#FF3B30")
-        default: return .accentColor
-        }
-    }
-    
-    private var bgColor: Color {
-        switch action {
-        case .dictation: return Color(hex: "#FFF0EE")
-        default: return Color(hex: "#EEF4FF")
-        }
-    }
-    
     var body: some View {
         Image(systemName: icon)
-            .font(.system(size: 16))
-            .foregroundColor(color)
-            .frame(width: 36, height: 36)
-            .background(bgColor)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(.white.opacity(0.35))
+            .frame(width: 24, height: 24)
     }
 }

@@ -55,9 +55,9 @@ struct SettingsView: View {
                     }
                     
                     Rectangle()
-                        .fill(Color(hex: "#E5E5EA"))
+                        .fill(Color.white.opacity(0.08))
                         .frame(height: 0.5)
-                        .padding(.leading, 52)
+                        .padding(.leading, 56)
                     
                     SettingsRow(
                         icon: "text.cursor",
@@ -157,7 +157,7 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.plain)
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(Color(hex: "#FF3B30"))
+                        .foregroundColor(Color(hex: "#FF453A"))
                     }
                 }
                 .modifier(ShakeEffect(animatableData: shakeOffset))
@@ -167,7 +167,7 @@ struct SettingsView: View {
                 VStack(spacing: 0) {
                     Text("Local Whisper · On-device · Private")
                         .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "#C7C7CC"))
+                        .foregroundColor(.white.opacity(0.18))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 32)
@@ -175,7 +175,7 @@ struct SettingsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Color(hex: "#0E0E0E"))
         .alert("Clear All History?", isPresented: $showClearConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Clear All", role: .destructive) {
@@ -200,10 +200,9 @@ private struct CardGroup<Content: View>: View {
         VStack(spacing: 0) {
             content
         }
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .background(Color(hex: "#1C1C1E"))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 24)
-        .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 2)
     }
 }
 
@@ -224,10 +223,10 @@ private struct SectionHeader: View {
     
     var body: some View {
         Text(title)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundColor(Color(hex: "#8E8E93"))
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.white.opacity(0.30))
             .textCase(.uppercase)
-            .tracking(0.5)
+            .tracking(1.0)
             .padding(.horizontal, 40) // 24 + 16 inset
             .padding(.bottom, 6)
     }
@@ -254,10 +253,10 @@ private struct SettingsRow<Trailing: View>: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(Color(hex: "#1C1C1E"))
+                    .foregroundColor(.white.opacity(0.90))
                 Text(subtitle)
                     .font(.system(size: 13))
-                    .foregroundColor(Color(hex: "#8E8E93"))
+                    .foregroundColor(.white.opacity(0.38))
             }
             
             Spacer()
