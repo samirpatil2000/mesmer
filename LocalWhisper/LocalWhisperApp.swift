@@ -566,8 +566,10 @@ final class SpeechRecognizer: ObservableObject {
     
     private func installAudioTap(on inputNode: AVAudioInputNode) {
         inputNode.removeTap(onBus: 0)
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [audioFanout] buffer, _ in
+        let outputFormat = inputNode.outputFormat(forBus: 0)
+        let hardwareFormat = inputNode.inputFormat(forBus: 0)
+        let tapFormat = preferredTapFormat(outputFormat: outputFormat, hardwareFormat: hardwareFormat)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: tapFormat) { [audioFanout] buffer, _ in
             audioFanout.append(buffer)
         }
     }
@@ -818,6 +820,23 @@ final class SpeechRecognizer: ObservableObject {
             }
     }
     
+    private func preferredTapFormat(
+        outputFormat: AVAudioFormat,
+        hardwareFormat: AVAudioFormat
+    ) -> AVAudioFormat? {
+        if outputFormat.sampleRate > 0,
+           outputFormat.channelCount > 0,
+           outputFormat.sampleRate == hardwareFormat.sampleRate {
+            return outputFormat
+        }
+        
+        if hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0 {
+            return hardwareFormat
+        }
+        
+        return nil
+    }
+    
     private func finishStopping() {
         if audioEngine.isRunning {
             audioEngine.stop()
@@ -833,6 +852,7 @@ final class SpeechRecognizer: ObservableObject {
         nextSequenceToCommit = 0
         completedChunkTexts.removeAll()
         updateTranscriptLive = false
+        audioEngine = AVAudioEngine()
     }
     
     private func forceCleanup() {
@@ -855,6 +875,7 @@ final class SpeechRecognizer: ObservableObject {
         }
         audioEngine.inputNode.removeTap(onBus: 0)
         audioFanout.removeAll()
+        audioEngine = AVAudioEngine()
     }
 }
 
