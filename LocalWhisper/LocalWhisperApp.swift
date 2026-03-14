@@ -656,17 +656,30 @@ final class SpeechRecognizer: ObservableObject {
         
         if let result {
             let newText = normalizedTranscriptText(result.bestTranscription.formattedString)
+            
+            // Always call preserve BEFORE updating latestText and BEFORE any early
+            // returns — this ensures a silence-reset (empty newText) still saves
+            // whatever the session had previously recognized into carriedText.
             preserveUtteranceBoundaryIfNeeded(for: session, newText: newText)
-            session.latestText = newText
-            session.lastResultAt = Date()
-            refreshLiveTranscriptIfNeeded()
-            resetInactivityTimer()
+            
+            // Only update live state if the recognizer actually returned content.
+            // An empty result means it reset after silence — don't overwrite latestText.
+            if !newText.isEmpty {
+                session.latestText = newText
+                session.lastResultAt = Date()
+                refreshLiveTranscriptIfNeeded()
+                resetInactivityTimer()
+            }
             
             if result.isFinal {
+                let hasFinalContent = !newText.isEmpty
                 if !userRequestedStop {
                     startSuccessorIfNeeded(after: sessionID)
                 }
-                completeSession(sessionID, finalText: result.bestTranscription.formattedString)
+                completeSession(
+                    sessionID,
+                    finalText: hasFinalContent ? result.bestTranscription.formattedString : nil
+                )
                 return
             }
         }
@@ -768,10 +781,20 @@ final class SpeechRecognizer: ObservableObject {
         newText: String
     ) {
         let previousText = normalizedTranscriptText(session.latestText)
-        guard !previousText.isEmpty, !newText.isEmpty else { return }
-        guard shouldCarryForward(previousText: previousText, newText: newText, lastResultAt: session.lastResultAt) else {
+        guard !previousText.isEmpty else { return }
+        
+        // If the recognizer returned empty text (reset after silence), always carry
+        // forward whatever we had — this is the primary cause of post-pause wipe-out.
+        if newText.isEmpty {
+            session.carriedText = mergedTranscript(session.carriedText, previousText)
             return
         }
+        
+        guard shouldCarryForward(
+            previousText: previousText,
+            newText: newText,
+            lastResultAt: session.lastResultAt
+        ) else { return }
         
         session.carriedText = mergedTranscript(session.carriedText, previousText)
     }
