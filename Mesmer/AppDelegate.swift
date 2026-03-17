@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import ServiceManagement
 
 /// App delegate that manages the menu bar icon, global event listeners,
 /// and coordinates the background system-level features.
@@ -79,13 +80,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Local Whisper")
+            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Mesmer")
             button.image?.size = NSSize(width: 18, height: 18)
             button.image?.isTemplate = true
         }
         
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Open Local Whisper", action: #selector(openMainWindow), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Open Mesmer", action: #selector(openMainWindow), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         
         let fnItem = NSMenuItem(title: "FN Dictation", action: nil, keyEquivalent: "")
@@ -99,7 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(toolbarItem)
         
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit Local Whisper", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit Mesmer", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         
         statusItem.menu = menu
     }
@@ -194,6 +195,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         textSelectionObserver.isEnabled = enabled
         if !enabled {
             rewriteCoordinator.hideToolbar()
+        }
+    }
+    
+    // MARK: - Launch at Login
+    
+    func setLaunchAtLoginEnabled(_ enabled: Bool) {
+        let service = SMAppService.mainApp
+        do {
+            if enabled {
+                try service.register()
+            } else {
+                try service.unregister()
+            }
+        } catch {
+            print("Failed to \(enabled ? "register" : "unregister") launch at login: \(error)")
         }
     }
 }

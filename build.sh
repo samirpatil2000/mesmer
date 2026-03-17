@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-APP_NAME="LocalWhisper"
-BUNDLE_ID="com.localwhisper.app"
+APP_NAME="Mesmer"
+BUNDLE_ID="com.mesmer.app"
 DEPLOY_TARGET="26.0"
 
 echo "🧹 Cleaning up old build..."
@@ -21,17 +21,18 @@ swiftc \
   -framework AVFoundation \
   -framework ApplicationServices \
   -framework FoundationModels \
-  LocalWhisper/*.swift \
+  -framework ServiceManagement \
+  Mesmer/*.swift \
   -o build/${APP_NAME}.app/Contents/MacOS/${APP_NAME}
 
 echo "📋 Creating Info.plist..."
-cp LocalWhisper/Info.plist build/${APP_NAME}.app/Contents/Info.plist
+cp Mesmer/Info.plist build/${APP_NAME}.app/Contents/Info.plist
 
 echo "📦 Writing PkgInfo..."
 echo "APPL????" > build/${APP_NAME}.app/Contents/PkgInfo
 
 echo "🔏 Code signing..."
-codesign --force --deep --sign - --entitlements LocalWhisper/LocalWhisper.entitlements build/${APP_NAME}.app
+codesign --force --deep --sign - --entitlements Mesmer/Mesmer.entitlements build/${APP_NAME}.app
 
 echo "🧼 Removing quarantine attribute..."
 xattr -cr build/${APP_NAME}.app
@@ -45,11 +46,11 @@ hdiutil create \
   -srcfolder build \
   -ov \
   -format UDZO \
-  LocalWhisper_Release.dmg
+  ${APP_NAME}_Release.dmg
 
 echo "🧼 Removing quarantine from DMG..."
-xattr -cr LocalWhisper_Release.dmg
+xattr -cr ${APP_NAME}_Release.dmg
 
 echo ""
-echo "✅ Done! DMG is located at: LocalWhisper_Release.dmg"
-echo "   If macOS still complains, run:  xattr -cr /path/to/LocalWhisper.app"
+echo "✅ Done! DMG is located at: ${APP_NAME}_Release.dmg"
+echo "   If macOS still complains, run:  xattr -cr /path/to/${APP_NAME}.app"

@@ -10,7 +10,7 @@ final class HistoryManager {
     
     init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("LocalWhisper", isDirectory: true)
+        let dir = appSupport.appendingPathComponent("Mesmer", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         fileURL = dir.appendingPathComponent("history.json")
         load()

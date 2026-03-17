@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>LocalWhisper</string>
+	<string>Mesmer</string>
 	<key>CFBundleDisplayName</key>
-	<string>Local Whisper</string>
+	<string>Mesmer</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.localwhisper.app</string>
+	<string>com.mesmer.app</string>
 	<key>CFBundleVersion</key>
 	<string>2</string>
 	<key>CFBundleShortVersionString</key>
@@ -15,16 +15,16 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleExecutable</key>
-	<string>LocalWhisper</string>
+	<string>Mesmer</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Local Whisper needs microphone access to transcribe your speech on-device.</string>
+	<string>Mesmer needs microphone access to transcribe your speech on-device.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Local Whisper uses on-device speech recognition to transcribe your voice.</string>
+	<string>Mesmer uses on-device speech recognition to transcribe your voice.</string>
 	<key>NSAccessibilityUsageDescription</key>
-	<string>Local Whisper needs accessibility access to detect text selection and inject transcribed text into any app.</string>
+	<string>Mesmer needs accessibility access to detect text selection and inject transcribed text into any app.</string>
 </dict>
 </plist>

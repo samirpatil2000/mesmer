@@ -1,6 +1,6 @@
-# Local Whisper
+# Mesmer
 
-Local Whisper is a native, on-device dictation and text-rewriting application for macOS. It provides a system-wide floating toolbar that allows you to transcribe speech directly into any text field or seamlessly rewrite selected text with different personas (Formal, Concise, Friendly, etc.).
+Mesmer is a native, on-device dictation and text-rewriting application for macOS. It provides a system-wide floating toolbar that allows you to transcribe speech directly into any text field or seamlessly rewrite selected text with different personas (Formal, Concise, Friendly, etc.).
 
 All processing happens entirely on your Mac, ensuring complete privacy.
 
@@ -12,6 +12,7 @@ All processing happens entirely on your Mac, ensuring complete privacy.
 - **Custom Personas**: Rewrite text to be formal, concise, friendly, or provide a custom instruction on how you want the text altered.
 - **Text Injection**: Automatically injects standard dictations or rewritten text directly into the active application's focused text field.
 - **History Tracking**: Keeps a local log of your recent transcriptions and rewrites.
+- **Launch at Login**: Option to start Mesmer automatically when you log into your Mac.
 
 ## Requirements
 
@@ -28,14 +29,14 @@ You can build the application using the included build script which creates a de
    ```bash
    ./build.sh
    ```
-4. The script will compile the Swift files, package the `.app` bundle, sign it, and generate `LocalWhisper_Release.dmg`.
+4. The script will compile the Swift files, package the `.app` bundle, sign it, and generate `Mesmer_Release.dmg`.
 
 > **Note:** If macOS complains about the app being from an unidentified developer after dragging it from the DMG to Applications, you may need to strip the quarantine attribute manually:
-> `xattr -cr /Applications/LocalWhisper.app`
+> `xattr -cr /Applications/Mesmer.app`
 
 ## Permissions Required
 
-On first launch, Local Whisper will request the following system permissions to function correctly:
+On first launch, Mesmer will request the following system permissions to function correctly:
 - **Speech Recognition**: To transcribe audio.
 - **Microphone**: To capture your voice.
 - **Accessibility**: To read selected text from other apps and inject the rewritten/transcribed text back into them.

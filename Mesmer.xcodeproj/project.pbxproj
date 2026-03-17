@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10000010000000000000001 /* LocalWhisperApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000001 /* LocalWhisperApp.swift */; };
+		A10000010000000000000001 /* MesmerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000001 /* MesmerApp.swift */; };
 		B20000010000000000000001 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000020000000000000001 /* Models.swift */; };
 		B20000030000000000000001 /* PersonaManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000040000000000000001 /* PersonaManager.swift */; };
 		B20000050000000000000001 /* HistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000060000000000000001 /* HistoryManager.swift */; };
@@ -25,10 +25,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A10000020000000000000001 /* LocalWhisperApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalWhisperApp.swift; sourceTree = "<group>"; };
-		A10000030000000000000001 /* LocalWhisper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LocalWhisper.entitlements; sourceTree = "<group>"; };
+		A10000020000000000000001 /* MesmerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MesmerApp.swift; sourceTree = "<group>"; };
+		A10000030000000000000001 /* Mesmer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Mesmer.entitlements; sourceTree = "<group>"; };
 		A10000040000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A10000050000000000000001 /* LocalWhisper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LocalWhisper.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000050000000000000001 /* Mesmer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mesmer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000020000000000000001 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		B20000040000000000000001 /* PersonaManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaManager.swift; sourceTree = "<group>"; };
 		B20000060000000000000001 /* HistoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryManager.swift; sourceTree = "<group>"; };
@@ -59,15 +59,15 @@
 		A10000070000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				A10000080000000000000001 /* LocalWhisper */,
+				A10000080000000000000001 /* Mesmer */,
 				A10000090000000000000001 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		A10000080000000000000001 /* LocalWhisper */ = {
+		A10000080000000000000001 /* Mesmer */ = {
 			isa = PBXGroup;
 			children = (
-				A10000020000000000000001 /* LocalWhisperApp.swift */,
+				A10000020000000000000001 /* MesmerApp.swift */,
 				B20000160000000000000001 /* AppDelegate.swift */,
 				B20000020000000000000001 /* Models.swift */,
 				B20000040000000000000001 /* PersonaManager.swift */,
@@ -82,16 +82,16 @@
 				B20000180000000000000001 /* PersonasView.swift */,
 				B200001A0000000000000001 /* HistoryView.swift */,
 				B200001C0000000000000001 /* SettingsView.swift */,
-				A10000030000000000000001 /* LocalWhisper.entitlements */,
+				A10000030000000000000001 /* Mesmer.entitlements */,
 				A10000040000000000000001 /* Info.plist */,
 			);
-			path = LocalWhisper;
+			path = Mesmer;
 			sourceTree = "<group>";
 		};
 		A10000090000000000000001 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A10000050000000000000001 /* LocalWhisper.app */,
+				A10000050000000000000001 /* Mesmer.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -99,9 +99,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A100000A0000000000000001 /* LocalWhisper */ = {
+		A100000A0000000000000001 /* Mesmer */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A100000E0000000000000001 /* Build configuration list for PBXNativeTarget "LocalWhisper" */;
+			buildConfigurationList = A100000E0000000000000001 /* Build configuration list for PBXNativeTarget "Mesmer" */;
 			buildPhases = (
 				A100000B0000000000000001 /* Sources */,
 				A10000060000000000000001 /* Frameworks */,
@@ -110,9 +110,9 @@
 			);
 			dependencies = (
 			);
-			name = LocalWhisper;
-			productName = LocalWhisper;
-			productReference = A10000050000000000000001 /* LocalWhisper.app */;
+			name = Mesmer;
+			productName = Mesmer;
+			productReference = A10000050000000000000001 /* Mesmer.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -125,7 +125,7 @@
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 			};
-			buildConfigurationList = A100000D0000000000000001 /* Build configuration list for PBXProject "LocalWhisper" */;
+			buildConfigurationList = A100000D0000000000000001 /* Build configuration list for PBXProject "Mesmer" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -138,7 +138,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A100000A0000000000000001 /* LocalWhisper */,
+				A100000A0000000000000001 /* Mesmer */,
 			);
 		};
 /* End PBXProject section */
@@ -148,7 +148,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000010000000000000001 /* LocalWhisperApp.swift in Sources */,
+				A10000010000000000000001 /* MesmerApp.swift in Sources */,
 				B20000010000000000000001 /* Models.swift in Sources */,
 				B20000030000000000000001 /* PersonaManager.swift in Sources */,
 				B20000050000000000000001 /* HistoryManager.swift in Sources */,
@@ -225,23 +225,23 @@
 			buildSettings = {
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = LocalWhisper/LocalWhisper.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Mesmer/Mesmer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = N26FZ4GW28;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = LocalWhisper/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Local Whisper";
+				INFOPLIST_FILE = Mesmer/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Mesmer";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Local Whisper needs microphone access to transcribe your speech on-device.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Local Whisper uses on-device speech recognition to transcribe your voice.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Mesmer needs microphone access to transcribe your speech on-device.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Mesmer uses on-device speech recognition to transcribe your voice.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.localwhisper.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mesmer.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -253,23 +253,23 @@
 			buildSettings = {
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = LocalWhisper/LocalWhisper.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Mesmer/Mesmer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = N26FZ4GW28;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = LocalWhisper/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Local Whisper";
+				INFOPLIST_FILE = Mesmer/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Mesmer";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Local Whisper needs microphone access to transcribe your speech on-device.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Local Whisper uses on-device speech recognition to transcribe your voice.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Mesmer needs microphone access to transcribe your speech on-device.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Mesmer uses on-device speech recognition to transcribe your voice.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.localwhisper.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mesmer.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -279,7 +279,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A100000D0000000000000001 /* Build configuration list for PBXProject "LocalWhisper" */ = {
+		A100000D0000000000000001 /* Build configuration list for PBXProject "Mesmer" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A100000F0000000000000001 /* Debug */,
@@ -288,7 +288,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A100000E0000000000000001 /* Build configuration list for PBXNativeTarget "LocalWhisper" */ = {
+		A100000E0000000000000001 /* Build configuration list for PBXNativeTarget "Mesmer" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A10000110000000000000001 /* Debug */,

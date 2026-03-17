@@ -6,7 +6,7 @@ import FoundationModels
 // MARK: - App Entry Point
 
 @main
-struct LocalWhisperApp: App {
+struct MesmerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.openWindow) var openWindow
     
@@ -20,6 +20,9 @@ struct LocalWhisperApp: App {
                 },
                 onToolbarToggleChanged: { [weak appDelegate] enabled in
                     appDelegate?.setFloatingToolbarEnabled(enabled)
+                },
+                onStartupToggleChanged: { [weak appDelegate] enabled in
+                    appDelegate?.setLaunchAtLoginEnabled(enabled)
                 }
             )
             .onAppear {
@@ -40,6 +43,7 @@ struct MainAppView: View {
     let historyManager: HistoryManager
     var onFNToggleChanged: ((Bool) -> Void)?
     var onToolbarToggleChanged: ((Bool) -> Void)?
+    var onStartupToggleChanged: ((Bool) -> Void)?
     
     @State private var selectedTab: AppTab = .personas
     @State private var isAccessibilityGranted: Bool = AXIsProcessTrusted()
@@ -126,7 +130,8 @@ struct MainAppView: View {
                     SettingsView(
                         historyManager: historyManager,
                         onFNToggleChanged: onFNToggleChanged,
-                        onToolbarToggleChanged: onToolbarToggleChanged
+                        onToolbarToggleChanged: onToolbarToggleChanged,
+                        onStartupToggleChanged: onStartupToggleChanged
                     )
                 }
             }
@@ -146,7 +151,7 @@ struct MainAppView: View {
         switch tab {
         case .personas: return "person.2"
         case .history: return "clock"
-        case .settings: return "gearshape"
+        case .settings: return "gearshape.fill"
         }
     }
 }
@@ -230,7 +235,7 @@ final class CorrectionsDictionary: ObservableObject {
     }
     
     init() {
-        if let data = UserDefaults.standard.data(forKey: "LocalWhisper.Corrections"),
+        if let data = UserDefaults.standard.data(forKey: "Mesmer.Corrections"),
            let decoded = try? JSONDecoder().decode([CorrectionEntry].self, from: data) {
             self.entries = decoded
         }
@@ -238,7 +243,7 @@ final class CorrectionsDictionary: ObservableObject {
     
     func save() {
         if let encoded = try? JSONEncoder().encode(entries) {
-            UserDefaults.standard.set(encoded, forKey: "LocalWhisper.Corrections")
+            UserDefaults.standard.set(encoded, forKey: "Mesmer.Corrections")
         }
     }
     
@@ -352,7 +357,7 @@ final class SpeechRecognizer: ObservableObject {
     }
     
     private final class AudioRequestFanout {
-        private let queue = DispatchQueue(label: "LocalWhisper.SpeechRecognizer.AudioRequestFanout")
+        private let queue = DispatchQueue(label: "Mesmer.SpeechRecognizer.AudioRequestFanout")
         private var requests: [UUID: SFSpeechAudioBufferRecognitionRequest] = [:]
         
         func add(_ request: SFSpeechAudioBufferRecognitionRequest, for id: UUID) {

@@ -3,11 +3,13 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage("fnDictationEnabled") private var fnDictationEnabled = true
     @AppStorage("floatingToolbarEnabled") private var floatingToolbarEnabled = true
+    @AppStorage("launchAtLoginEnabled") private var launchAtLoginEnabled = false
     @AppStorage("dictationLanguage") private var dictationLanguage = "en-US"
     
     var historyManager: HistoryManager
     var onFNToggleChanged: ((Bool) -> Void)?
     var onToolbarToggleChanged: ((Bool) -> Void)?
+    var onStartupToggleChanged: ((Bool) -> Void)?
     
     @State private var showClearConfirmation = false
     
@@ -70,6 +72,25 @@ struct SettingsView: View {
                             .labelsHidden()
                             .onChange(of: floatingToolbarEnabled) { _, newValue in
                                 onToolbarToggleChanged?(newValue)
+                            }
+                    }
+                    
+                    Rectangle()
+                        .fill(Color.white.opacity(0.08))
+                        .frame(height: 0.5)
+                        .padding(.leading, 56)
+                    
+                    SettingsRow(
+                        icon: "arrow.up.right.square",
+                        iconColor: Color.blue,
+                        title: "Launch at Login",
+                        subtitle: "Start Mesmer automatically"
+                    ) {
+                        Toggle("", isOn: $launchAtLoginEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                            .onChange(of: launchAtLoginEnabled) { _, newValue in
+                                onStartupToggleChanged?(newValue)
                             }
                     }
                 }
@@ -165,7 +186,7 @@ struct SettingsView: View {
                 // MARK: - About
                 
                 VStack(spacing: 0) {
-                    Text("Local Whisper · On-device · Private")
+                    Text("Mesmer · On-device · Private")
                         .font(.system(size: 12))
                         .foregroundColor(.white.opacity(0.18))
                 }

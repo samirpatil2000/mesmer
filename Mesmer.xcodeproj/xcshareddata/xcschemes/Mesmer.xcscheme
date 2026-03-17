@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "A100000A0000000000000001"
-               BuildableName = "LocalWhisper.app"
-               BlueprintName = "LocalWhisper"
-               ReferencedContainer = "container:LocalWhisper.xcodeproj">
+               BuildableName = "Mesmer.app"
+               BlueprintName = "Mesmer"
+               ReferencedContainer = "container:Mesmer.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -44,9 +44,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A100000A0000000000000001"
-            BuildableName = "LocalWhisper.app"
-            BlueprintName = "LocalWhisper"
-            ReferencedContainer = "container:LocalWhisper.xcodeproj">
+            BuildableName = "Mesmer.app"
+            BlueprintName = "Mesmer"
+            ReferencedContainer = "container:Mesmer.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -61,9 +61,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A100000A0000000000000001"
-            BuildableName = "LocalWhisper.app"
-            BlueprintName = "LocalWhisper"
-            ReferencedContainer = "container:LocalWhisper.xcodeproj">
+            BuildableName = "Mesmer.app"
+            BlueprintName = "Mesmer"
+            ReferencedContainer = "container:Mesmer.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
