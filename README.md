@@ -1,5 +1,13 @@
 <p align="center">
   <img src="Mesmer/Assest/mesmer_app_logo_with_name.svg" alt="Mesmer Logo" width="400">
+  <br>
+  <b>A native, private dictation & text-rewriting tool for macOS</b>
+  <br><br>
+  <a href="https://github.com/samirpatil2000/mesmer/releases">
+    <img src="https://img.shields.io/badge/Download-V2.0-007AFF?style=for-the-badge&logo=apple" alt="Download">
+  </a>
+  <img src="https://img.shields.io/badge/macOS-26.0+-000000?style=for-the-badge&logo=apple" alt="macOS">
+  <img src="https://img.shields.io/badge/Swift-6.0-F05138?style=for-the-badge&logo=swift" alt="Swift">
 </p>
 
 # Mesmer
