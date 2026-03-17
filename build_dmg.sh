@@ -34,6 +34,14 @@ Mesmer/*.swift \
 echo "📋 Copying Info.plist..."
 cp Mesmer/Info.plist ${APP_DIR}/Contents/Info.plist
 
+echo "🎨 Compiling Assets..."
+actool Mesmer/Assets.xcassets \
+  --compile ${APP_DIR}/Contents/Resources \
+  --platform macosx \
+  --minimum-deployment-target ${DEPLOY_TARGET} \
+  --app-icon AppIcon \
+  --output-partial-info-plist build/assetcatalog_generated_info.plist
+
 echo "📦 Creating PkgInfo..."
 echo "APPL????" > ${APP_DIR}/Contents/PkgInfo
 

@@ -1,0 +1,23 @@
+<svg width="100%" viewBox="0 0 680 480" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="squircle-clip">
+      <rect x="190" y="40" width="300" height="300" rx="68"/>
+    </clipPath>
+  </defs>
+
+  <!-- App icon: squircle background -->
+  <rect x="190" y="40" width="300" height="300" rx="68" fill="#0A0A0A" style="fill:rgb(10, 10, 10);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Subtle inner border -->
+  <rect x="190" y="40" width="300" height="300" rx="68" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.08" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.08;font-family:&quot;Anthropic Sans&quot;, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Waveform: single continuous path, asymmetric peaks, human feel -->
+  <path d="M228,190&#10;       C234,190 237,158 244,158 C251,158 254,222 261,222&#10;       C268,222 271,148 282,148 C293,148 296,232 307,232&#10;       C315,232 318,138 332,138 C346,138 349,232 357,232&#10;       C368,232 371,148 379,148 C390,148 393,222 399,222&#10;       C406,222 409,158 416,158 C423,158 426,190 432,190" fill="none" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:2.8px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Wordmark -->
+  <text x="340" y="390" text-anchor="middle" dominant-baseline="central" font-family="var(--font-sans)" font-size="34" font-weight="500" letter-spacing="12" fill="var(--color-text-primary)" opacity="0.92" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.92;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:34px;font-weight:500;text-anchor:middle;dominant-baseline:central">MESMER</text>
+
+  <!-- Tagline -->
+  <text x="340" y="432" text-anchor="middle" dominant-baseline="central" font-family="var(--font-sans)" font-size="12" font-weight="400" letter-spacing="3" fill="var(--color-text-secondary)" opacity="0.55" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.55;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">on-device · private</text>
+
+</svg>

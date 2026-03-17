@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Mesmer/Assest/mesmer_app_logo_with_name.svg" alt="Mesmer Logo" width="400">
+</p>
+
 # Mesmer
 
 Mesmer is a native, on-device dictation and text-rewriting application for macOS. It provides a system-wide floating toolbar that allows you to transcribe speech directly into any text field or seamlessly rewrite selected text with different personas (Formal, Concise, Friendly, etc.).
