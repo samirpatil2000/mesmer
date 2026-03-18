@@ -35,6 +35,9 @@ final class RewriteCoordinator {
     /// Called when text selection is detected.
     func showToolbar(selectedText: String, bounds: CGRect) {
         guard !isProcessing else { return }
+        let hasActivePersonas = personaManager.personas.contains { $0.isEnabled }
+        guard hasActivePersonas else { return }
+        
         currentSelectedText = selectedText
         currentSelectionBounds = bounds
         toolbarWindow.showToolbar(at: bounds)
