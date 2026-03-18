@@ -13,6 +13,8 @@ final class RewriteCoordinator {
     private var currentSelectedText: String?
     private var currentSelectionBounds: CGRect?
     private var isProcessing = false
+    var textSelectionObserver: TextSelectionObserver?
+    private let toastWindow = DictationToastWindow()
     
     init(historyManager: HistoryManager, personaManager: PersonaManager) {
         self.historyManager = historyManager
@@ -51,11 +53,11 @@ final class RewriteCoordinator {
         currentSelectionBounds = nil
     }
     
-    /// Performs the rewrite operation.
     private func performRewrite(personaID: UUID, styleName: String, prompt: String) async {
         guard let selectedText = currentSelectedText, !selectedText.isEmpty else { return }
         guard !isProcessing else { return }
         
+        defer { isProcessing = false }
         isProcessing = true
         
         // Show loading state — pulse the active pill
@@ -76,9 +78,9 @@ final class RewriteCoordinator {
             let session = LanguageModelSession()
             let response = try await session.respond(to: fullPrompt)
             let result = response.content
-            
             // Replace the selected text in-place via clipboard paste
             AccessibilityService.replaceSelectedText(result)
+            textSelectionObserver?.clearTracking()
             
             // Log to history
             let action = personaManager.historyAction(for: personaID)
@@ -90,10 +92,15 @@ final class RewriteCoordinator {
                 resultText: result
             )
         } catch {
+            let desc = String(describing: error).lowercased()
+            if desc.contains("guardrailviolation") || desc.contains("unsafe content") {
+                toastWindow.show(message: "Too wild to rewrite. Try again.", isError: true)
+            } else {
+                toastWindow.show(message: "Something went wrong. Please try again.", isError: true)
+            }
             print("[RewriteCoordinator] Rewrite failed: \(error)")
         }
         
-        isProcessing = false
         toolbarWindow.hideToolbar()
         currentSelectedText = nil
         currentSelectionBounds = nil

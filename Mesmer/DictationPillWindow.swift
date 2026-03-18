@@ -242,9 +242,10 @@ final class DictationToastWindow: NSPanel {
 
     override var canBecomeMain: Bool { false }
 
-    func show(message: String) {
+    func show(message: String, isError: Bool = false) {
         dismissWorkItem?.cancel()
         toastState.message = message
+        updateBorderForError(isError)
 
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
@@ -278,6 +279,14 @@ final class DictationToastWindow: NSPanel {
         }, completionHandler: {
             self.orderOut(nil)
         })
+    }
+    
+    private func updateBorderForError(_ isError: Bool) {
+        guard let container = contentView,
+              let effectView = container.subviews.first(where: { $0 is NSVisualEffectView }) else { return }
+        effectView.layer?.borderColor = isError
+            ? NSColor(red: 1, green: 0.23, blue: 0.19, alpha: 0.45).cgColor
+            : NSColor.white.withAlphaComponent(0.12).cgColor
     }
 }
 

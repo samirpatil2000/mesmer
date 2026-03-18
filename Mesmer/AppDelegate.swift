@@ -187,6 +187,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         
         let toolbarEnabled = UserDefaults.standard.object(forKey: "floatingToolbarEnabled") as? Bool ?? true
         textSelectionObserver.isEnabled = toolbarEnabled
+        rewriteCoordinator.textSelectionObserver = textSelectionObserver
         
         textSelectionObserver.onSelectionChanged = { [weak self] text, bounds in
             self?.rewriteCoordinator.showToolbar(selectedText: text, bounds: bounds)

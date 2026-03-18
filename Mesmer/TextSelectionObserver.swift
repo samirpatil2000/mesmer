@@ -11,6 +11,7 @@ final class TextSelectionObserver {
     var isEnabled = true
     private var pollTimer: Timer?
     private var lastSelectedText: String?
+    private var consecutiveEditableFailures: Int = 0
     
     func start() {
         // Poll every 300ms — fast enough to feel responsive, light enough to be invisible
@@ -25,31 +26,49 @@ final class TextSelectionObserver {
         pollTimer?.invalidate()
         pollTimer = nil
         lastSelectedText = nil
+        consecutiveEditableFailures = 0
     }
     
     private func checkSelection() {
         guard isEnabled else { return }
         
-        let selectedText = AccessibilityService.getSelectedText()
-        let trimmed = selectedText?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let fetchResult = AccessibilityService.getSelectedTextAndBounds() else {
+            // Selection was cleared or unavailable
+            if lastSelectedText != nil {
+                lastSelectedText = nil
+                onSelectionCleared?()
+            }
+            return
+        }
+        
+        let text = fetchResult.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bounds = fetchResult.bounds
         let isChromeFamilyApp = isFrontmostChromeFamilyApp()
         
-        if let text = trimmed, !text.isEmpty {
+        if !text.isEmpty {
             // Text is selected — only notify if it changed and the element is editable
             if text != lastSelectedText {
-                lastSelectedText = text
-                
                 if !isChromeFamilyApp {
                     // Only show toolbar for editable text fields outside Chrome-family apps.
-                    guard AccessibilityService.isFocusedElementEditable() else { return }
+                    if !AccessibilityService.isFocusedElementEditable() {
+                        consecutiveEditableFailures += 1
+                        if consecutiveEditableFailures >= 2 {
+                            return // Block toolbar after 2 consecutive failures
+                        } else {
+                            // Allow one transient failure, but don't show the toolbar yet.
+                            // We will check again on the next poll.
+                            return
+                        }
+                    } else {
+                        consecutiveEditableFailures = 0
+                    }
                 }
                 
-                if let bounds = AccessibilityService.getSelectionBounds() {
-                    onSelectionChanged?(text, bounds)
-                }
+                lastSelectedText = text
+                onSelectionChanged?(text, bounds)
             }
         } else if lastSelectedText != nil {
-            // Selection was cleared
+            // Selection was cleared (text is empty but was previously non-empty)
             lastSelectedText = nil
             onSelectionCleared?()
         }
@@ -58,6 +77,7 @@ final class TextSelectionObserver {
     /// Force re-check (e.g. after a rewrite completes and we expect selection to be gone)
     func clearTracking() {
         lastSelectedText = nil
+        consecutiveEditableFailures = 0
     }
 
     private func isFrontmostChromeFamilyApp() -> Bool {

@@ -158,6 +158,44 @@ enum AccessibilityService {
         return nil
     }
     
+    // MARK: - Combined Fetch
+    
+    /// Gets both the selected text and its bounds in a single fetch from the focused element.
+    static func getSelectedTextAndBounds() -> (text: String, bounds: CGRect)? {
+        guard isAccessibilityEnabled() else { return nil }
+        guard let element = focusedElement() else { return nil }
+        
+        // 1. Get Text
+        var selectedText: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selectedText) == .success,
+              let text = selectedText as? String else {
+            return nil
+        }
+        
+        // 2. Get Bounds
+        var selectedRange: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &selectedRange) == .success else {
+            return nil
+        }
+        
+        var boundsValue: AnyObject?
+        guard AXUIElementCopyParameterizedAttributeValue(
+            element,
+            kAXBoundsForRangeParameterizedAttribute as CFString,
+            selectedRange!,
+            &boundsValue
+        ) == .success else {
+            return nil
+        }
+        
+        var bounds = CGRect.zero
+        if AXValueGetValue(boundsValue as! AXValue, .cgRect, &bounds) {
+            return (text: text, bounds: bounds)
+        }
+        
+        return nil
+    }
+    
     // MARK: - Replace Selected Text
     
     /// Replaces the currently selected text in the frontmost app's focused text field.
