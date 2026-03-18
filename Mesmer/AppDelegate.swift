@@ -162,6 +162,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 await self.dictationCoordinator.endDictation()
             }
         }
+
+        globalKeyListener.onFNSpaceCombo = { [weak self] in
+            guard let self else { return }
+            Task { @MainActor in
+                await self.dictationCoordinator.beginAutoListenDictation()
+            }
+        }
+
+        globalKeyListener.onEscapePressed = { [weak self] in
+            guard let self else { return }
+            Task { @MainActor in
+                await self.dictationCoordinator.cancelAutoListenDictation()
+            }
+        }
         
         globalKeyListener.start()
     }
@@ -189,6 +203,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     
     func setFNDictationEnabled(_ enabled: Bool) {
         globalKeyListener.isEnabled = enabled
+        if !enabled && dictationCoordinator.currentMode == .autoListen {
+            Task { @MainActor in
+                await dictationCoordinator.cancelAutoListenDictation()
+            }
+        }
     }
     
     func setFloatingToolbarEnabled(_ enabled: Bool) {

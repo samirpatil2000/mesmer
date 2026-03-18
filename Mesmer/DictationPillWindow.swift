@@ -11,8 +11,6 @@ final class DictationPillWindow: NSPanel {
     private let pillWidth: CGFloat = 180
     private let pillHeight: CGFloat = 48
     private let bottomOffset: CGFloat = 32
-    
-    private var hostingView: NSHostingView<DictationPillContent>?
     private let pillContent = DictationPillState()
     
     init() {
@@ -70,7 +68,9 @@ final class DictationPillWindow: NSPanel {
     }
     
     func showPill() {
+        pillContent.isAutoListenMode = false
         pillContent.isPreparing = false
+        updateBorderForAutoListen(false)
         // Position: centered horizontally, 32pt from bottom
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
@@ -100,6 +100,8 @@ final class DictationPillWindow: NSPanel {
     func showPreparing() {
         pillContent.isPreparing = true
         pillContent.isAnimating = false
+        pillContent.isAutoListenMode = false
+        updateBorderForAutoListen(false)
         
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
@@ -119,10 +121,44 @@ final class DictationPillWindow: NSPanel {
             self.contentView?.layer?.setAffineTransform(.identity)
         }
     }
+
+    func showAutoListenPill() {
+        pillContent.isAutoListenMode = true
+        pillContent.isPreparing = false
+        pillContent.isAnimating = true
+        updateBorderForAutoListen(true)
+
+        guard let screen = NSScreen.main else { return }
+        let screenFrame = screen.visibleFrame
+        let x = screenFrame.midX - pillWidth / 2
+        let y = screen.frame.origin.y + bottomOffset
+        setFrame(NSRect(x: x, y: y, width: pillWidth, height: pillHeight), display: true)
+
+        if isVisible {
+            contentView?.layer?.setAffineTransform(.identity)
+            alphaValue = 1.0
+            orderFrontRegardless()
+            return
+        }
+
+        alphaValue = 0
+        contentView?.layer?.setAffineTransform(CGAffineTransform(scaleX: 0.7, y: 0.7))
+        orderFrontRegardless()
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.25
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            context.allowsImplicitAnimation = true
+            self.animator().alphaValue = 1.0
+            self.contentView?.layer?.setAffineTransform(.identity)
+        }
+    }
     
     func hidePill() {
         pillContent.isAnimating = false
         pillContent.isPreparing = false
+        pillContent.isAutoListenMode = false
+        updateBorderForAutoListen(false)
         
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.2
@@ -134,6 +170,14 @@ final class DictationPillWindow: NSPanel {
             self.orderOut(nil)
             self.contentView?.layer?.setAffineTransform(.identity)
         })
+    }
+
+    private func updateBorderForAutoListen(_ isAutoListen: Bool) {
+        guard let container = contentView,
+              let effectView = container.subviews.first(where: { $0 is NSVisualEffectView }) else { return }
+        effectView.layer?.borderColor = isAutoListen
+            ? NSColor(red: 1, green: 0.23, blue: 0.19, alpha: 0.45).cgColor
+            : NSColor.white.withAlphaComponent(0.12).cgColor
     }
 }
 
@@ -244,6 +288,7 @@ final class DictationToastWindow: NSPanel {
 final class DictationPillState {
     var isAnimating: Bool = false
     var isPreparing: Bool = false
+    var isAutoListenMode: Bool = false
 }
 
 @Observable
@@ -286,8 +331,38 @@ struct DictationPillContent: View {
             }
             
             Spacer()
+
+            if state.isAutoListenMode {
+                AutoListenDot()
+                    .padding(.trailing, 14)
+            }
         }
         .frame(width: 180, height: 48)
+        .background(
+            state.isAutoListenMode
+                ? Color(red: 1, green: 0.23, blue: 0.19, opacity: 0.08)
+                : Color.clear
+        )
+    }
+}
+
+private struct AutoListenDot: View {
+    @State private var pulsing = false
+
+    var body: some View {
+        Circle()
+            .fill(Color(red: 1, green: 0.23, blue: 0.19))
+            .frame(width: 8, height: 8)
+            .scaleEffect(pulsing ? 1.3 : 1.0)
+            .opacity(pulsing ? 0.6 : 1.0)
+            .onAppear {
+                withAnimation(
+                    .easeInOut(duration: 1.2)
+                    .repeatForever(autoreverses: true)
+                ) {
+                    pulsing = true
+                }
+            }
     }
 }
 

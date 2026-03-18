@@ -6,11 +6,18 @@ import AVFoundation
 /// Hold FN → mic activates + pill shows → release FN → transcribe → inject text → log history.
 @MainActor
 final class DictationCoordinator {
+
+    enum DictationMode {
+        case idle
+        case holdToTalk
+        case autoListen
+    }
     
     let speechRecognizer: SpeechRecognizer
     let historyManager: HistoryManager
     let pillWindow: DictationPillWindow
     let toastWindow: DictationToastWindow
+    private(set) var currentMode: DictationMode = .idle
     
     /// The PID of the app that was focused when dictation started.
     /// Saved so we can track whether focus changed while dictating.
@@ -39,21 +46,77 @@ final class DictationCoordinator {
     
     /// Called when FN key is pressed down.
     func beginDictation() async {
-        // Readiness Gate
+        guard currentMode == .idle else { return }
+        guard await ensureRecognizerReady() else { return }
+        
+        currentMode = .holdToTalk
+        beginSession(showAutoListenPill: false)
+    }
+
+    func beginAutoListenDictation() async {
+        switch currentMode {
+        case .autoListen:
+            return
+        case .holdToTalk:
+            currentMode = .autoListen
+            pillWindow.showAutoListenPill()
+        case .idle:
+            guard await ensureRecognizerReady() else { return }
+            currentMode = .autoListen
+            beginSession(showAutoListenPill: true)
+        }
+    }
+    
+    /// Called when FN key is released.
+    func endDictation() async {
+        switch currentMode {
+        case .holdToTalk:
+            currentMode = .idle
+            await commitDictation()
+        case .autoListen:
+            currentMode = .idle
+            await commitAutoListenDictation()
+        case .idle:
+            return
+        }
+    }
+
+    func cancelAutoListenDictation() async {
+        guard currentMode == .autoListen else { return }
+        currentMode = .idle
+        
+        _ = await speechRecognizer.stopGlobalDictation()
+        
+        if let id = draftHistoryID {
+            historyManager.delete(id: id)
+        }
+        
+        draftHistoryID = nil
+        targetAppPID = nil
+        targetAppName = nil
+        
+        pillWindow.hidePill()
+    }
+
+    private func ensureRecognizerReady() async -> Bool {
         switch speechRecognizer.readiness {
         case .unknown, .unavailable:
             await speechRecognizer.warmUp()
             if !speechRecognizer.isReady {
                 toastWindow.show(message: "Preparing dictation… please try again.")
-                return
+                return false
             }
         case .checking:
             toastWindow.show(message: "Speech model is loading…")
-            return
+            return false
         case .ready:
             break
         }
-        
+
+        return true
+    }
+
+    private func beginSession(showAutoListenPill: Bool) {
         // Save the target app BEFORE we do anything
         targetAppPID = AccessibilityService.frontmostAppPID()
         targetAppName = AccessibilityService.frontmostAppName()
@@ -62,13 +125,20 @@ final class DictationCoordinator {
             targetAppName: targetAppName,
             injectionStatus: .failed
         )
-        
-        pillWindow.showPill()
+
+        if showAutoListenPill {
+            pillWindow.showAutoListenPill()
+        } else {
+            pillWindow.showPill()
+        }
         speechRecognizer.startGlobalDictation()
     }
     
-    /// Called when FN key is released.
-    func endDictation() async {
+    private func commitAutoListenDictation() async {
+        await commitDictation()
+    }
+
+    private func commitDictation() async {
         pillWindow.hidePill()
         defer {
             targetAppPID = nil
@@ -119,7 +189,7 @@ final class DictationCoordinator {
             toastWindow.show(message: toastMessage(for: reason))
         }
     }
-
+    
     private func toastMessage(for reason: InjectionFailureReason) -> String {
         switch reason {
         case .noFocusedEditableElement:

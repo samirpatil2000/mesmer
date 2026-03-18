@@ -106,6 +106,11 @@ final class HistoryManager {
         entries.remove(atOffsets: offsets)
         save()
     }
+
+    func delete(id: UUID) {
+        entries.removeAll { $0.id == id }
+        save()
+    }
     
     // MARK: - Persistence
     
