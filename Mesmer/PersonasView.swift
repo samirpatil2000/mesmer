@@ -346,6 +346,10 @@ private struct PersonaCard: View {
         }
         .background(cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(0.04), lineWidth: 1)
+        )
         .onHover { hovering in
             isHovering = hovering
         }
@@ -384,39 +388,52 @@ private struct PersonaCard: View {
     }
     
     private var expandedContent: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("PROMPT")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.30))
+                    .foregroundColor(.white.opacity(0.40))
                     .tracking(0.5)
                 
                 Text(persona.systemPrompt)
                     .font(.system(size: 13))
-                    .foregroundColor(.white.opacity(0.70))
+                    .foregroundColor(.white.opacity(0.85))
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.04))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                    )
             }
             
-            HStack(spacing: 16) {
-                ActionTextButton(
+            HStack(spacing: 12) {
+                Spacer()
+                
+                ActionButton(
                     title: "Edit",
-                    color: .white.opacity(0.55),
+                    icon: "pencil",
+                    color: .white,
                     action: onEdit
                 )
                 
-                if trimmedPrompt != trimmedDefaultPrompt {
-                    ActionTextButton(
-                        title: "Reset to Default",
-                        color: Color.orange.opacity(0.70),
+                if persona.isBuiltIn && trimmedPrompt != trimmedDefaultPrompt {
+                    ActionButton(
+                        title: "Reset",
+                        icon: "arrow.uturn.backward",
+                        color: Color.orange,
                         action: onReset
                     )
                 }
                 
                 if !persona.isBuiltIn {
-                    ActionTextButton(
+                    ActionButton(
                         title: "Delete",
-                        color: Color.red.opacity(0.70),
+                        icon: "trash",
+                        color: Color.red,
                         action: onDelete
                     )
                 }
@@ -489,18 +506,19 @@ private struct InlinePersonaEditor: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             TextField("Name", text: $name)
                 .textFieldStyle(.plain)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(.white.opacity(0.92))
                 .focused($focusedField, equals: .name)
-                .padding(.bottom, 8)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color.black.opacity(0.2))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
-                    Rectangle()
-                        .fill(Color.white.opacity(0.08))
-                        .frame(height: 0.5),
-                    alignment: .bottom
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
             
             ZStack(alignment: .topLeading) {
@@ -508,8 +526,8 @@ private struct InlinePersonaEditor: View {
                     Text("Describe how this persona rewrites text...")
                         .font(.system(size: 13))
                         .foregroundColor(.white.opacity(0.22))
-                        .padding(.top, 4)
-                        .padding(.leading, 4)
+                        .padding(.top, 10)
+                        .padding(.leading, 14)
                 }
                 
                 TextEditor(text: $prompt)
@@ -519,34 +537,40 @@ private struct InlinePersonaEditor: View {
                     .focused($focusedField, equals: .prompt)
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
             }
+            .background(Color.black.opacity(0.2))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
-                Rectangle()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(height: 0.5),
-                alignment: .bottom
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
             )
             
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 Spacer()
                 
                 Button("Cancel", action: onCancel)
                     .buttonStyle(.plain)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.45))
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white.opacity(0.6))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
                 
                 Button(action: onSave) {
                     Text("Save")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.black)
-                        .frame(width: 72, height: 36)
-                        .background(canSave ? Color.white : Color.white.opacity(0.30))
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(canSave ? Color.blue : Color.white.opacity(0.1))
+                        .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .disabled(!canSave)
             }
         }
+        .padding(.vertical, 4)
         .onAppear {
             DispatchQueue.main.async {
                 focusedField = .name
@@ -555,15 +579,33 @@ private struct InlinePersonaEditor: View {
     }
 }
 
-private struct ActionTextButton: View {
+private struct ActionButton: View {
     let title: String
+    let icon: String
     let color: Color
     let action: () -> Void
     
+    @State private var isHovering = false
+    
     var body: some View {
-        Button(title, action: action)
-            .buttonStyle(.plain)
-            .font(.system(size: 12, weight: .medium))
-            .foregroundColor(color)
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundColor(color.opacity(isHovering ? 1.0 : 0.8))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(color.opacity(isHovering ? 0.2 : 0.1))
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
     }
 }
