@@ -19,10 +19,10 @@ final class RewriteCoordinator {
         self.personaManager = personaManager
         self.toolbarWindow = RewriteToolbarWindow(personaManager: personaManager)
         
-        toolbarWindow.onStyleSelected = { [weak self] name, prompt in
+        toolbarWindow.onStyleSelected = { [weak self] personaID, name, prompt in
             guard let self else { return }
             Task { @MainActor in
-                await self.performRewrite(styleName: name, prompt: prompt)
+                await self.performRewrite(personaID: personaID, styleName: name, prompt: prompt)
             }
         }
         
@@ -49,7 +49,7 @@ final class RewriteCoordinator {
     }
     
     /// Performs the rewrite operation.
-    private func performRewrite(styleName: String, prompt: String) async {
+    private func performRewrite(personaID: UUID, styleName: String, prompt: String) async {
         guard let selectedText = currentSelectedText, !selectedText.isEmpty else { return }
         guard !isProcessing else { return }
         
@@ -57,7 +57,7 @@ final class RewriteCoordinator {
         
         // Show loading state — pulse the active pill
         if let bounds = currentSelectionBounds {
-            toolbarWindow.showToolbar(at: bounds, processing: true, activeStyle: styleName)
+            toolbarWindow.showToolbar(at: bounds, processing: true, activePersonaID: personaID)
         }
         
         let fullPrompt = """
@@ -78,16 +78,7 @@ final class RewriteCoordinator {
             AccessibilityService.replaceSelectedText(result)
             
             // Log to history
-            let action: HistoryAction = {
-                switch styleName {
-                case "Rewrite": return .rewrite
-                case "Formal": return .formal
-                case "Concise": return .concise
-                case "Friendly": return .friendly
-                case "Custom": return .custom
-                default: return .persona
-                }
-            }()
+            let action = personaManager.historyAction(for: personaID)
             
             historyManager.log(
                 originalText: selectedText,

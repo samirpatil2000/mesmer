@@ -15,15 +15,8 @@ private enum ToolbarLayoutMetrics {
     static let pillHorizontalPadding: CGFloat = 14
 }
 
-private let baseToolbarStyles: [(String, String)] = [
-    ("Rewrite", "Rewrite this text to be clearer and more polished while preserving the meaning."),
-    ("Formal", "Rewrite this text in a formal, professional tone."),
-    ("Concise", "Rewrite this text to be shorter and more concise while keeping the core meaning."),
-    ("Friendly", "Rewrite this text in a warm, friendly, conversational tone."),
-]
-
 private struct ToolbarChipItem: Identifiable {
-    let id: String
+    let id: UUID
     let label: String
     let prompt: String
     let width: CGFloat
@@ -46,7 +39,7 @@ private struct ToolbarLayoutResult {
 @MainActor
 final class RewriteToolbarWindow: NSPanel {
     
-    var onStyleSelected: ((_ styleName: String, _ prompt: String) -> Void)?
+    var onStyleSelected: ((_ personaID: UUID, _ styleName: String, _ prompt: String) -> Void)?
     var onDismiss: (() -> Void)?
     
     private let toolbarContent: ToolbarContentState
@@ -87,8 +80,8 @@ final class RewriteToolbarWindow: NSPanel {
     }
     
     private func setupContent() {
-        toolbarContent.onAction = { [weak self] name, prompt in
-            self?.onStyleSelected?(name, prompt)
+        toolbarContent.onAction = { [weak self] personaID, name, prompt in
+            self?.onStyleSelected?(personaID, name, prompt)
         }
         
         let content = RewriteToolbarContent(state: toolbarContent)
@@ -100,9 +93,13 @@ final class RewriteToolbarWindow: NSPanel {
     
     // MARK: - Show / Hide
     
-    func showToolbar(at selectionBounds: CGRect, processing: Bool = false, activeStyle: String? = nil) {
+    func showToolbar(
+        at selectionBounds: CGRect,
+        processing: Bool = false,
+        activePersonaID: UUID? = nil
+    ) {
         toolbarContent.isProcessing = processing
-        toolbarContent.activeStyleName = activeStyle
+        toolbarContent.activePersonaID = activePersonaID
         
         if processing {
             // Don't reposition during processing — just update state
@@ -331,23 +328,17 @@ private func toolbarChipItems(
     personaManager: PersonaManager?,
     maxChipWidth: CGFloat
 ) -> [ToolbarChipItem] {
-    let builtInItems = baseToolbarStyles.map { style in
+    let personaItems = (personaManager?.personas ?? [])
+        .filter { $0.isEnabled }
+        .map { persona in
         ToolbarChipItem(
-            id: "style-\(style.0)",
-            label: style.0,
-            prompt: style.1,
-            width: measuredPillWidth(label: style.0, maxChipWidth: maxChipWidth)
-        )
-    }
-    let personaItems = (personaManager?.personas ?? []).map { persona in
-        ToolbarChipItem(
-            id: "persona-\(persona.id.uuidString)",
+            id: persona.id,
             label: persona.name,
             prompt: persona.systemPrompt,
             width: measuredPillWidth(label: persona.name, maxChipWidth: maxChipWidth)
         )
     }
-    return builtInItems + personaItems
+    return personaItems
 }
 
 private func wrapToolbarRows(
@@ -426,10 +417,10 @@ private extension CGRect {
 @MainActor
 final class ToolbarContentState {
     var isProcessing: Bool = false
-    var activeStyleName: String? = nil
+    var activePersonaID: UUID? = nil
     var availableContentWidth: CGFloat =
         ToolbarLayoutMetrics.minimumWidth - (ToolbarLayoutMetrics.outerHorizontalPadding * 2)
-    var onAction: ((_ name: String, _ prompt: String) -> Void)?
+    var onAction: ((_ personaID: UUID, _ name: String, _ prompt: String) -> Void)?
     
     // Hold reference to personas
     var personaManager: PersonaManager?
@@ -440,7 +431,7 @@ final class ToolbarContentState {
     
     func reset() {
         isProcessing = false
-        activeStyleName = nil
+        activePersonaID = nil
     }
 }
 
@@ -517,9 +508,9 @@ struct PillsRow: View {
                         PillButton(
                             label: chip.label,
                             totalWidth: chip.width,
-                            isPulsing: state.isProcessing && state.activeStyleName == chip.label
+                            isPulsing: state.isProcessing && state.activePersonaID == chip.id
                         ) {
-                            state.onAction?(chip.label, chip.prompt)
+                            state.onAction?(chip.id, chip.label, chip.prompt)
                         }
                     }
                 }
