@@ -580,6 +580,7 @@ final class SpeechRecognizer: ObservableObject {
     private func startRecognitionSession(using speechRecognizer: SFSpeechRecognizer) {
         let recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
         recognitionRequest.requiresOnDeviceRecognition = true
+        recognitionRequest.addsPunctuation = true
         recognitionRequest.shouldReportPartialResults = true
         
         let session = RecognitionSession(
@@ -1008,6 +1009,7 @@ final class SpeechRecognizer: ObservableObject {
         // Dry-run probe to force model load
         let probeRequest = SFSpeechAudioBufferRecognitionRequest()
         probeRequest.requiresOnDeviceRecognition = true
+        probeRequest.addsPunctuation = true
         let probeTask = speechRecognizer.recognitionTask(with: probeRequest) { _, _ in }
         probeRequest.endAudio()
         probeTask.cancel()
