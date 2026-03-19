@@ -70,7 +70,9 @@ final class DictationPillWindow: NSPanel {
     func showPill() {
         pillContent.isAutoListenMode = false
         pillContent.isPreparing = false
+        pillContent.isAnimating = false
         updateBorderForAutoListen(false)
+
         // Position: centered horizontally, 32pt from bottom
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
@@ -93,8 +95,10 @@ final class DictationPillWindow: NSPanel {
             self.contentView?.layer?.setAffineTransform(.identity)
         }
         
-        // Start waveform
-        pillContent.isAnimating = true
+        // Start waveform with a small delay to ensure edge detection
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            self.pillContent.isAnimating = true
+        }
     }
     
     func showPreparing() {
@@ -125,7 +129,7 @@ final class DictationPillWindow: NSPanel {
     func showAutoListenPill() {
         pillContent.isAutoListenMode = true
         pillContent.isPreparing = false
-        pillContent.isAnimating = true
+        pillContent.isAnimating = false
         updateBorderForAutoListen(true)
 
         guard let screen = NSScreen.main else { return }
@@ -138,6 +142,10 @@ final class DictationPillWindow: NSPanel {
             contentView?.layer?.setAffineTransform(.identity)
             alphaValue = 1.0
             orderFrontRegardless()
+            // Set true in asyncAfter(0.05)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                self.pillContent.isAnimating = true
+            }
             return
         }
 
@@ -151,6 +159,11 @@ final class DictationPillWindow: NSPanel {
             context.allowsImplicitAnimation = true
             self.animator().alphaValue = 1.0
             self.contentView?.layer?.setAffineTransform(.identity)
+        }
+        
+        // Set true in asyncAfter(0.05)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            self.pillContent.isAnimating = true
         }
     }
     
@@ -415,28 +428,38 @@ struct WaveformBar: View {
     let delay: Double
     
     @State private var animateToMax: Bool = false
+    @State private var generation: Int = 0
     
     var body: some View {
         RoundedRectangle(cornerRadius: 1.5)
             .fill(Color.white)
             .frame(width: 3, height: animateToMax ? maxHeight : minHeight)
+            .id(generation)
             .onChange(of: isAnimating) { _, active in
                 if active {
-                    startAnimation()
+                    restartAnimation()
                 } else {
                     stopAnimation()
                 }
             }
             .onAppear {
                 if isAnimating {
-                    startAnimation()
+                    restartAnimation()
                 }
             }
     }
     
-    private func startAnimation() {
-        // Small stagger before starting
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+    private func restartAnimation() {
+        // (a) snap animateToMax to false with a zero-duration animation
+        withAnimation(.linear(duration: 0)) {
+            animateToMax = false
+        }
+        
+        // (b) increment generation to force SwiftUI to rebuild the view
+        generation += 1
+        
+        // (c) after a DispatchQueue.main.asyncAfter of delay + 0.02s, installs the repeatForever spring animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay + 0.02) {
             withAnimation(
                 .spring(response: duration, dampingFraction: 0.5)
                 .repeatForever(autoreverses: true)
