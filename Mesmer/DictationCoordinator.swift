@@ -99,9 +99,12 @@ final class DictationCoordinator {
     }
 
     private func ensureRecognizerReady() async -> Bool {
+        // Unconditionally warmUp to ensure the audio engine is still alive,
+        // catching any silent 0-sample-rate dropouts from sleep instantly.
+        await speechRecognizer.warmUp()
+        
         switch speechRecognizer.readiness {
         case .unknown, .unavailable:
-            await speechRecognizer.warmUp()
             if !speechRecognizer.isReady {
                 toastWindow.show(message: "Preparing dictation… please try again.")
                 return false

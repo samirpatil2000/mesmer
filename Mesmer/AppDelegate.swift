@@ -7,7 +7,7 @@ import ServiceManagement
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     
-    // MARK: - Menu Bar
+    // MARK: - Menu Bar 
     
     private var statusItem: NSStatusItem!
     var onOpenWindowRequest: ((String) -> Void)?
@@ -43,6 +43,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Hook into the main window as soon as it appears so we can intercept close.
         DispatchQueue.main.async {
             self.claimMainWindow()
+        }
+        
+        startAudioEngineHealthTimer()
+    }
+    
+    private func startAudioEngineHealthTimer() {
+        // Re-validate the audio engine every 30 minutes so long idle periods
+        // (sleep, audio device switches) don't silently break future dictation.
+        Timer.scheduledTimer(withTimeInterval: 1800, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.speechRecognizer.warmUp()
+            }
         }
     }
     

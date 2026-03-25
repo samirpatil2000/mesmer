@@ -74,7 +74,7 @@ final class DictationPillWindow: NSPanel {
         updateBorderForAutoListen(false)
 
         // Position: centered horizontally, 32pt from bottom
-        guard let screen = NSScreen.main else { return }
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
         let screenFrame = screen.visibleFrame
         let x = screenFrame.midX - pillWidth / 2
         let y = screen.frame.origin.y + bottomOffset
@@ -107,7 +107,7 @@ final class DictationPillWindow: NSPanel {
         pillContent.isAutoListenMode = false
         updateBorderForAutoListen(false)
         
-        guard let screen = NSScreen.main else { return }
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
         let screenFrame = screen.visibleFrame
         let x = screenFrame.midX - pillWidth / 2
         let y = screen.frame.origin.y + bottomOffset
@@ -132,7 +132,7 @@ final class DictationPillWindow: NSPanel {
         pillContent.isAnimating = false
         updateBorderForAutoListen(true)
 
-        guard let screen = NSScreen.main else { return }
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
         let screenFrame = screen.visibleFrame
         let x = screenFrame.midX - pillWidth / 2
         let y = screen.frame.origin.y + bottomOffset
@@ -259,7 +259,7 @@ final class DictationToastWindow: NSPanel {
         dismissWorkItem?.cancel()
         toastState.message = message
 
-        guard let screen = NSScreen.main else { return }
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
         let screenFrame = screen.visibleFrame
         let x = screenFrame.midX - toastWidth / 2
         let y = screen.frame.origin.y + bottomOffset

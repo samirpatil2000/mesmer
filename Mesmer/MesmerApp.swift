@@ -981,9 +981,17 @@ final class SpeechRecognizer: ObservableObject {
     }
     
     func warmUp() async {
-        if case .ready = readiness { return }
         if case .unavailable = readiness { return }
-        
+
+        // If previously marked ready, verify the audio engine is still alive.
+        // After sleep or audio device changes, AVAudioEngine's input node goes
+        // stale silently — sample rate drops to 0. Force a full re-init in that case.
+        if case .ready = readiness {
+            let sampleRate = audioEngine.inputNode.inputFormat(forBus: 0).sampleRate
+            if sampleRate > 0 { return }
+            forceCleanup() // resets readiness to .unknown
+        }
+
         guard !isWarmingUp else { return }
         isWarmingUp = true
         defer { isWarmingUp = false }
