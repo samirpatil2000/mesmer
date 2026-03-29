@@ -80,9 +80,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Mesmer")
-            button.image?.size = NSSize(width: 18, height: 18)
-            button.image?.isTemplate = true
+            let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
+            if let symbolImage = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Mesmer")?.withSymbolConfiguration(config) {
+                symbolImage.isTemplate = true
+                button.image = symbolImage
+            } else {
+                let fallbackImage = NSImage(size: NSSize(width: 1, height: 1))
+                fallbackImage.isTemplate = true
+                button.image = fallbackImage
+            }
         }
         
         let menu = NSMenu()
