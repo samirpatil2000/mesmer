@@ -13,6 +13,8 @@ final class TextSelectionObserver {
     private var lastSelectedText: String?
     private var isRunningClipboardFallback = false
     private var mouseUpMonitor: Any?
+    private var mouseDownLocation: CGPoint = .zero
+    private let dragThreshold: CGFloat = 5.0
     
     func start() {
         // Poll every 300ms — fast enough to feel responsive, light enough to be invisible
@@ -25,6 +27,12 @@ final class TextSelectionObserver {
         mouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { [weak self] _ in
             Task { @MainActor in
                 self?.handleMouseUp()
+            }
+        }
+
+        NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+            Task { @MainActor in
+                self?.mouseDownLocation = NSEvent.mouseLocation
             }
         }
     }
@@ -73,6 +81,13 @@ final class TextSelectionObserver {
     }
 
     private func handleMouseUp() {
+        // Only proceed if mouse actually moved — drag means selection, click means nothing
+        let mouseUpLocation = NSEvent.mouseLocation
+        let dx = mouseUpLocation.x - mouseDownLocation.x
+        let dy = mouseUpLocation.y - mouseDownLocation.y
+        let distance = sqrt(dx * dx + dy * dy)
+        guard distance > dragThreshold else { return }
+
         guard isEnabled else { return }
         guard isFrontmostChromeFamilyApp() else { return }
         guard !isRunningClipboardFallback else { return }
@@ -108,10 +123,14 @@ final class TextSelectionObserver {
             guard let self else { return }
 
             defer {
-                // Always restore original clipboard
-                pasteboard.clearContents()
-                for (type, data) in savedContents {
-                    pasteboard.setData(data, forType: type)
+                // Only restore if clipboard hasn't been touched by user since our simulation
+                // If changeCount moved beyond +1, user did their own copy — don't wipe it
+                let currentCount = pasteboard.changeCount
+                if currentCount <= savedChangeCount + 1 {
+                    pasteboard.clearContents()
+                    for (type, data) in savedContents {
+                        pasteboard.setData(data, forType: type)
+                    }
                 }
                 self.isRunningClipboardFallback = false
             }
