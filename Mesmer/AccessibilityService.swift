@@ -127,6 +127,44 @@ enum AccessibilityService {
         return selectedText as? String
     }
     
+    /// Attempts to get selected text using AXSelectedTextRange + AXValue.
+    /// Works in apps like VS Code where AXSelectedText returns nil.
+    /// Returns nil if either attribute is unavailable.
+    static func getSelectedTextViaRange() -> String? {
+        guard isAccessibilityEnabled() else { return nil }
+        guard let element = focusedElement() else { return nil }
+
+        // Get selected range
+        var rangeValue: AnyObject?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            kAXSelectedTextRangeAttribute as CFString,
+            &rangeValue
+        ) == .success, let rangeValue else { return nil }
+
+        var range = CFRange()
+        guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &range),
+              range.length > 0 else { return nil }
+
+        // Get full text value
+        var textValue: AnyObject?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            kAXValueAttribute as CFString,
+            &textValue
+        ) == .success,
+        let fullText = textValue as? String else { return nil }
+
+        // Extract selected substring
+        let nsString = fullText as NSString
+        guard range.location >= 0,
+              range.location + range.length <= nsString.length else { return nil }
+
+        return nsString.substring(
+            with: NSRange(location: range.location, length: range.length)
+        )
+    }
+    
     // MARK: - Get Selection Position
     
     /// Gets the screen position of the current text selection for toolbar positioning.

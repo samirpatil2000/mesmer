@@ -1,113 +1,112 @@
 import AppKit
 
-/// Observes text selection changes in the frontmost application using polling.
-/// When text is selected, calls the callback with the selected text and its screen position.
 @MainActor
 final class TextSelectionObserver {
-    
+
     var onSelectionChanged: ((_ selectedText: String, _ bounds: CGRect) -> Void)?
     var onSelectionCleared: (() -> Void)?
-    
     var isEnabled = true
+
     private var pollTimer: Timer?
-    private var lastSelectedText: String?
-    private var isRunningClipboardFallback = false
     private var mouseUpMonitor: Any?
+    private var mouseDownMonitor: Any?
+    private var lastSelectedText: String?
     private var mouseDownLocation: CGPoint = .zero
-    private let dragThreshold: CGFloat = 5.0
-    
+    private var isRunningClipboardFallback = false
+
     func start() {
-        // Poll every 300ms — fast enough to feel responsive, light enough to be invisible
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.checkSelection()
-            }
-        }
-        
-        mouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { [weak self] _ in
-            Task { @MainActor in
-                self?.handleMouseUp()
-            }
+        // Poll for native apps + clearing
+        pollTimer = Timer.scheduledTimer(
+            withTimeInterval: 0.3,
+            repeats: true
+        ) { [weak self] _ in
+            Task { @MainActor in self?.checkSelection() }
         }
 
-        NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+        // Track mouseDown position
+        mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: .leftMouseDown
+        ) { [weak self] _ in
             Task { @MainActor in
                 self?.mouseDownLocation = NSEvent.mouseLocation
             }
         }
+
+        // Trigger clipboard fallback on mouseUp for Electron apps
+        mouseUpMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: .leftMouseUp
+        ) { [weak self] event in
+            Task { @MainActor in
+                self?.handleMouseUp(event: event)
+            }
+        }
     }
-    
+
     func stop() {
         pollTimer?.invalidate()
         pollTimer = nil
-        lastSelectedText = nil
-        
-        if let monitor = mouseUpMonitor {
-            NSEvent.removeMonitor(monitor)
+        if let m = mouseUpMonitor {
+            NSEvent.removeMonitor(m)
             mouseUpMonitor = nil
         }
+        if let m = mouseDownMonitor {
+            NSEvent.removeMonitor(m)
+            mouseDownMonitor = nil
+        }
+        lastSelectedText = nil
         isRunningClipboardFallback = false
     }
-    
+
+    func clearTracking() {
+        lastSelectedText = nil
+    }
+
+    // MARK: - Native app polling
+
     private func checkSelection() {
         guard isEnabled else { return }
-        
+
+        // Skip polling for Electron apps — handled by mouseUp
+        if isFrontmostElectronApp() { return }
+
         let selectedText = AccessibilityService.getSelectedText()
         let trimmed = selectedText?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let isChromeFamilyApp = isFrontmostChromeFamilyApp()
-        
+
         if let text = trimmed, !text.isEmpty {
-            // Text is selected — only notify if it changed and the element is editable
             if text != lastSelectedText {
                 lastSelectedText = text
-                
-                if !isChromeFamilyApp {
-                    // Only show toolbar for editable text fields outside Chrome-family apps.
-                    guard AccessibilityService.isFocusedElementEditable() else { return }
-                }
-                
+                guard AccessibilityService.isFocusedElementEditable() else { return }
                 if let bounds = AccessibilityService.getSelectionBounds() {
                     onSelectionChanged?(text, bounds)
                 }
             }
         } else if lastSelectedText != nil {
-            // For Electron/Chromium apps AXSelectedText is always nil
-            // so we never clear via polling — clearing is handled by 
-            // the next mouseUp which will find no clipboard change
-            if isFrontmostChromeFamilyApp() { return }
             lastSelectedText = nil
             onSelectionCleared?()
         }
     }
 
-    private func handleMouseUp() {
-        // Only proceed if mouse actually moved — drag means selection, click means nothing
-        let mouseUpLocation = NSEvent.mouseLocation
-        let dx = mouseUpLocation.x - mouseDownLocation.x
-        let dy = mouseUpLocation.y - mouseDownLocation.y
-        let distance = sqrt(dx * dx + dy * dy)
-        guard distance > dragThreshold else { return }
+    // MARK: - Electron app clipboard fallback
 
+    private func handleMouseUp(event: NSEvent) {
         guard isEnabled else { return }
-        guard isFrontmostChromeFamilyApp() else { return }
+        guard isFrontmostElectronApp() else { return }
         guard !isRunningClipboardFallback else { return }
+
+        // ONLY fire on actual drag (distance > 5pt) OR double/triple click
+        // This prevents plain cursor-positioning clicks from triggering Cmd+C
+        let upLocation = NSEvent.mouseLocation
+        let dx = upLocation.x - mouseDownLocation.x
+        let dy = upLocation.y - mouseDownLocation.y
+        let distance = sqrt(dx * dx + dy * dy)
+        let isMultiClick = event.clickCount >= 2
+
+        guard distance > 5.0 || isMultiClick else { return }
 
         isRunningClipboardFallback = true
 
         let pasteboard = NSPasteboard.general
         let savedChangeCount = pasteboard.changeCount
-
-        // Save existing clipboard contents
-        let savedContents: [(NSPasteboard.PasteboardType, Data)] = pasteboard
-            .pasteboardItems?
-            .compactMap { item in
-                for type in item.types {
-                    if let data = item.data(forType: type) {
-                        return (type, data)
-                    }
-                }
-                return nil
-            } ?? []
 
         // Simulate Cmd+C
         let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: 8, keyDown: true)
@@ -118,24 +117,14 @@ final class TextSelectionObserver {
         keyUp?.flags = .maskCommand
         keyUp?.post(tap: .cgSessionEventTap)
 
-        // Wait for clipboard to update
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             guard let self else { return }
+            self.isRunningClipboardFallback = false
 
-            defer {
-                // Only restore if clipboard hasn't been touched by user since our simulation
-                // If changeCount moved beyond +1, user did their own copy — don't wipe it
-                let currentCount = pasteboard.changeCount
-                if currentCount <= savedChangeCount + 1 {
-                    pasteboard.clearContents()
-                    for (type, data) in savedContents {
-                        pasteboard.setData(data, forType: type)
-                    }
-                }
-                self.isRunningClipboardFallback = false
-            }
-
-            // Nothing was copied — no selection
+            // If clipboard didn't change, nothing was selected — bail out
+            // This also handles VS Code's "copy line" edge case:
+            // if user had no selection, changeCount still moves but
+            // we check the guard below
             guard pasteboard.changeCount != savedChangeCount else { return }
             guard let text = pasteboard.string(forType: .string) else { return }
 
@@ -145,30 +134,31 @@ final class TextSelectionObserver {
 
             self.lastSelectedText = trimmed
 
-            // Use mouse position as bounds since AX bounds don't work in these apps
             let mouse = NSEvent.mouseLocation
-            let bounds = CGRect(x: mouse.x, y: mouse.y, width: 1, height: 1)
+            let bounds = CGRect(
+                x: mouse.x, y: mouse.y,
+                width: 1, height: 1
+            )
             self.onSelectionChanged?(trimmed, bounds)
         }
     }
-    
-    /// Force re-check (e.g. after a rewrite completes and we expect selection to be gone)
-    func clearTracking() {
-        lastSelectedText = nil
-    }
 
-    private func isFrontmostChromeFamilyApp() -> Bool {
-        guard let bundleIdentifier = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else {
-            return false
-        }
+    // MARK: - Electron/Chromium detection
+
+    private func isFrontmostElectronApp() -> Bool {
+        guard let app = NSWorkspace.shared.frontmostApplication else { return false }
+        let bundle = app.bundleIdentifier ?? ""
         let knownElectronApps: Set<String> = [
             "com.google.antigravity",
             "com.microsoft.VSCode",
             "com.tinyspeck.slackmacgap",
+            "com.hnc.Discord",
+            "md.obsidian",
+            "notion.id",
         ]
-        let normalized = bundleIdentifier.lowercased()
-        return normalized.contains("chrome")
-            || normalized.contains("chromium")
-            || knownElectronApps.contains(bundleIdentifier)
+        return knownElectronApps.contains(bundle)
+            || bundle.lowercased().contains("chrome")
+            || bundle.lowercased().contains("chromium")
+            || bundle.lowercased().contains("electron")
     }
 }
