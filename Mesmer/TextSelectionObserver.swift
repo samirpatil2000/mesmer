@@ -108,7 +108,17 @@ final class TextSelectionObserver {
         let pasteboard = NSPasteboard.general
         let savedChangeCount = pasteboard.changeCount
 
-        // Simulate Cmd+C
+        // Snapshot current clipboard so we can restore it after detection
+        let savedContents: [(NSPasteboard.PasteboardType, Data)] = pasteboard
+            .pasteboardItems?
+            .flatMap { item in
+                item.types.compactMap { type in
+                    guard let data = item.data(forType: type) else { return nil }
+                    return (type, data)
+                }
+            } ?? []
+
+        // Simulate Cmd+C — purely for detection, clipboard will be restored
         let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: 8, keyDown: true)
         keyDown?.flags = .maskCommand
         keyDown?.post(tap: .cgSessionEventTap)
@@ -121,13 +131,20 @@ final class TextSelectionObserver {
             guard let self else { return }
             self.isRunningClipboardFallback = false
 
-            // If clipboard didn't change, nothing was selected — bail out
-            // This also handles VS Code's "copy line" edge case:
-            // if user had no selection, changeCount still moves but
-            // we check the guard below
+            // If clipboard didn't change, nothing was selected
             guard pasteboard.changeCount != savedChangeCount else { return }
-            guard let text = pasteboard.string(forType: .string) else { return }
 
+            // Grab the selected text before restoring
+            let text = pasteboard.string(forType: .string)
+
+            // Restore clipboard immediately — user never sees it change
+            pasteboard.clearContents()
+            for (type, data) in savedContents {
+                pasteboard.setData(data, forType: type)
+            }
+
+            // Now process what we found
+            guard let text else { return }
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { return }
             guard trimmed != self.lastSelectedText else { return }
