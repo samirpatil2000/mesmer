@@ -161,10 +161,12 @@ final class RewriteToolbarWindow: NSPanel {
         }, completionHandler: { [weak self] in
             guard let self else { return }
             Task { @MainActor in
-                self.orderOut(nil)
-                self.contentView?.layer?.setAffineTransform(.identity)
-                self.toolbarContent.reset()
-                self.onDismiss?()
+                if self.alphaValue == 0 {
+                    self.orderOut(nil)
+                    self.contentView?.layer?.setAffineTransform(.identity)
+                    self.toolbarContent.reset()
+                    self.onDismiss?()
+                }
             }
         })
     }

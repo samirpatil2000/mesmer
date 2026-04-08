@@ -180,8 +180,10 @@ final class DictationPillWindow: NSPanel {
             self.animator().alphaValue = 0
             self.contentView?.layer?.setAffineTransform(CGAffineTransform(scaleX: 0.85, y: 0.85))
         }, completionHandler: {
-            self.orderOut(nil)
-            self.contentView?.layer?.setAffineTransform(.identity)
+            if self.alphaValue == 0 {
+                self.orderOut(nil)
+                self.contentView?.layer?.setAffineTransform(.identity)
+            }
         })
     }
 
@@ -289,7 +291,9 @@ final class DictationToastWindow: NSPanel {
             context.allowsImplicitAnimation = true
             self.animator().alphaValue = 0
         }, completionHandler: {
-            self.orderOut(nil)
+            if self.alphaValue == 0 {
+                self.orderOut(nil)
+            }
         })
     }
 }
